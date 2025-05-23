@@ -58,6 +58,17 @@ class SceneTransitionManager {
         return this.activeScene;
     }
 
+    forceEndTransition() {
+        if (this.isTransitioning) {
+            logger.warn("Forcing end of scene transition");
+            this.isTransitioning = false;
+            this._ensurePlayerState(true); // Force render and ensure player state
+            eventBus.emit('sceneTransitionComplete'); // Emit completion event
+            return true;
+        }
+        return false;
+    }
+
     // --- Update Loop ---
     update(deltaTime, elapsedTime) {
         if (!this.isTransitioning) return;

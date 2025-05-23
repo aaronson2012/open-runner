@@ -1,8 +1,6 @@
 
 export const controlsConfig = {
     MOUSE_SENSITIVITY: 0.002,
-    PLAYER_TILT_FACTOR: 0.25,
-    PLAYER_TILT_SMOOTHING: 0.1,
     KEY_TURN_SPEED: Math.PI / 1.5,
 
     KEY_TOGGLE_FPS: 'f',

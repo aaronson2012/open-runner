@@ -6,20 +6,35 @@ export const level1Config = {
     NOISE_FREQUENCY: 0.01, // How close together the hills are (lower = wider hills)
     NOISE_AMPLITUDE: 8,   // How high the hills are (larger = higher peaks/deeper valleys)
 
-    // --- Scene ---
-    SCENE_BACKGROUND_COLOR: 0x87CEEB,
-    SCENE_FOG_COLOR: 0x87CEEB,
-    SCENE_FOG_NEAR: 35,
-    SCENE_FOG_FAR: 1000,
+    // --- Scene & Atmosphere ---
+    atmosphericProfile: {
+        backgroundColor: 0x87CEEB,
+        fog: {
+            color: 0x87CEEB,
+            near: 35,
+            far: 1000,
+        },
+        lighting: {
+            ambient: {
+                color: 0xffffff,
+                intensity: 0.6,
+            },
+            directional: {
+                color: 0xffffff,
+                intensity: 0.8,
+                position: { x: 100, y: 100, z: 50 },
+            },
+        },
+        elements: [
+            // No special atmospheric elements for forest level by default
+        ]
+    },
 
-    // --- Lighting ---
-    AMBIENT_LIGHT_COLOR: 0xffffff,
-    AMBIENT_LIGHT_INTENSITY: 0.6,
-    DIRECTIONAL_LIGHT_COLOR: 0xffffff,
-    DIRECTIONAL_LIGHT_INTENSITY: 0.8,
-    DIRECTIONAL_LIGHT_POS_X: 100,
-    DIRECTIONAL_LIGHT_POS_Y: 100,
-    DIRECTIONAL_LIGHT_POS_Z: 50,
+    // --- Coin Visuals ---
+    COIN_VISUALS: {
+        spinSpeed: 2.0, // Example spin speed, adjust as needed
+        // Add other coin visual properties here if any in the future
+    },
 
     // --- Enemies ---
     ENEMY_DEFAULT_SPEED: 5.0,
@@ -171,31 +186,5 @@ export const level1Config = {
             scoreValue: 0,
             maxPlacementAttempts: 15,
         },
-    ],
-
-    // --- Coins (Legacy Visuals - Keep if needed, but prefer data in OBJECT_TYPES) ---
-    COIN_VISUALS: {
-        radius: 0.75,
-        height: 0.2,
-        color: 0xFFFF00, // Yellow
-        spinSpeed: 1.0, // Radians per second
-    },
-
-    // --- Magnet Powerup Visuals ---
-    MAGNET_VISUALS: {
-        size: 0.8,
-        color: 0xF60000, // Red
-    },
-
-    // --- Doubler ---
-    DOUBLER_VISUALS: {
-        size: 0.5,
-        color: 0x0088FF, // Blue color
-    },
-
-    // --- Invisibility ---
-    INVISIBILITY_VISUALS: {
-        size: 1.0,
-        color: 0x7C00FF, // Purple color
-    },
+    ]
 };

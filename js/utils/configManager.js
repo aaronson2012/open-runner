@@ -14,6 +14,9 @@ class ConfigManager {
 
         // Default configuration
         this.defaultConfig = {};
+
+        // Initialization status
+        this.initializationComplete = false;
     }
 
     /**
@@ -305,6 +308,25 @@ class ConfigManager {
         this.configs.clear();
         this.defaultConfig = {};
         logger.debug('Cleared all configurations');
+    }
+
+    /**
+     * Sets the initialization status of the config manager.
+     * @param {boolean} status - True if initialization is complete, false otherwise.
+     */
+    setInitializationComplete(status) {
+        this.initializationComplete = !!status;
+        if (this.initializationComplete) {
+            logger.debug('ConfigManager initialization complete.');
+        }
+    }
+
+    /**
+     * Checks if the config manager has completed its initial loading.
+     * @returns {boolean} True if initialization is complete.
+     */
+    isInitialized() {
+        return this.initializationComplete;
     }
 }
 

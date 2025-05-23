@@ -58,7 +58,7 @@ export async function loadLevel(levelId) { // levelId is now a string
             return false;
         }
 
-        // Scene setup/reset is handled by Game._updateSceneAppearance() after level loading
+        // Scene setup/reset is handled by atmosphericManager.setupAtmosphereForLevel() after level loading
 
         return true;
 
@@ -76,8 +76,6 @@ export async function loadLevel(levelId) { // levelId is now a string
  * @returns {object | null} The configuration object or null if no level is loaded.
  */
 export function getCurrentConfig() {
-    if (!currentLevelConfig) {
-    }
     return currentLevelConfig;
 }
 

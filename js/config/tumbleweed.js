@@ -22,6 +22,10 @@ export const tumbleweedConfig = {
     MIN_VELOCITY_SQ_THRESHOLD: 0.1,
     TERRAIN_ADJUST_THRESHOLD: 1.0,
     GROUND_BOUNCE_FACTOR: 0.7,
+GROUND_FOLLOW_SMOOTH_FACTOR: 0.1, // How quickly to follow terrain height. Lower is smoother.
+    MAX_DOWNWARD_VELOCITY_CLAMP: -5.0, // Max downward speed to prevent tunneling.
+    MIN_UPWARD_PUSH_OFFSET: 0.2,       // Offset above terrain to trigger min upward velocity.
+    MIN_UPWARD_VELOCITY_NEAR_GROUND: 0.2, // Min upward speed when very close to ground.
 
     MASS: 0.3,
     FRICTION: 0.2,

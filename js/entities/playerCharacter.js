@@ -117,7 +117,7 @@ export function createPlayerCharacter() {
     leftArmGroup.add(leftElbowGroup);
 
     leftElbowMesh.position.y = 0;
-    leftForearmMesh.position.y = -forearmLength / 2 - jointRadius * 0.5;
+    leftForearmMesh.position.y = -forearmLength / 2 - jointRadius * playerConfig.LIMB_OFFSET_FACTOR;
 
     leftElbowGroup.add(leftElbowMesh);
     leftElbowGroup.add(leftForearmMesh);
@@ -242,3 +242,5 @@ export function animatePlayerCharacter(parts, animationTime, runSpeed = 10) {
 
 
 }
+// Default export for compatibility
+export default createPlayerCharacter;

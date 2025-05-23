@@ -79,20 +79,16 @@ export function setupEventHandlers(dependencies) {
                 logger.info(`Score threshold reached (${currentScore}/${transitionScore}), transitioning to level2`);
 
 
+                // Schedule a potential level transition.
+                // The 100ms delay allows current event processing to complete and provides a brief pause.
+                // Actual transition logic is delegated to the 'requestLevelTransition' event handler for robustness.
                 setTimeout(() => {
-
+                    // Re-check game state at the time of execution
                     if (gameStateManager.getCurrentState() === GameStates.PLAYING) {
-
-                        gameStateManager.setGameState(GameStates.LEVEL_TRANSITION);
-
-
-                        logger.info('Ensuring complete cleanup of level1 before transitioning to level2');
-                        if (levelManager.getCurrentLevelId() === 'level1') {
-                            levelManager.unloadCurrentLevel();
-                        }
-
-
-                        startGameCallback('level2');
+                        logger.info('Score threshold delay complete, emitting requestLevelTransition for level2.');
+                        eventBus.emit('requestLevelTransition', 'level2');
+                    } else {
+                        logger.warn(`Level transition to level2 aborted. Game state was ${gameStateManager.getCurrentState()} after delay, not PLAYING.`);
                     }
                 }, 100);
             }
@@ -131,7 +127,7 @@ export function setupEventHandlers(dependencies) {
         if (newState === GameStates.TITLE) {
             ScoreManager.resetCurrentScore();
 
-            if (uiManager) {
+            if (uiManager && typeof uiManager.updateScoreDisplay === 'function') {
                 uiManager.updateScoreDisplay(0, false);
             }
 
@@ -178,13 +174,22 @@ export function setupEventHandlers(dependencies) {
      eventBus.subscribe('requestRestart', () => {
         logger.info("Received requestRestart event");
         const currentLevelId = levelManager.getCurrentLevelId();
-        if (currentLevelId && !sceneTransitionManager.getIsTransitioning() && !cameraManager.getIsTransitioning()) {
+        if (currentLevelId) {
+            // Force reset any stuck transitions
+            if (sceneTransitionManager.getIsTransitioning() || cameraManager.getIsTransitioning()) {
+                logger.warn("Forcing reset of stuck transitions before restarting");
+                if (cameraManager.getIsTransitioning()) {
+                    cameraManager.resetTransitionState();
+                }
+                if (sceneTransitionManager.getIsTransitioning()) {
+                    sceneTransitionManager.forceEndTransition();
+                }
+            }
+
             resetInputStates();
             updateMobileControlsVisibility();
             eventBus.emit('uiButtonClicked');
             startGameCallback(currentLevelId);
-        } else if (sceneTransitionManager.getIsTransitioning() || cameraManager.getIsTransitioning()) {
-            logger.warn("Cannot restart: Transition in progress.");
         } else {
             logger.error("Cannot restart: Current level ID not found.");
         }
@@ -192,10 +197,18 @@ export function setupEventHandlers(dependencies) {
 
      eventBus.subscribe('requestReturnToTitle', () => {
         logger.info("Received requestReturnToTitle event");
+
+        // Force reset any stuck transitions
         if (sceneTransitionManager.getIsTransitioning() || cameraManager.getIsTransitioning()) {
-            logger.warn("Cannot return to title: Transition in progress.");
-            return;
+            logger.warn("Forcing reset of stuck transitions before returning to title");
+            if (cameraManager.getIsTransitioning()) {
+                cameraManager.resetTransitionState();
+            }
+            if (sceneTransitionManager.getIsTransitioning()) {
+                sceneTransitionManager.forceEndTransition();
+            }
         }
+
         eventBus.emit('uiButtonClicked');
         updateMobileControlsVisibility(false, true); // Force hide
         atmosphericManager.clearElements();
@@ -206,8 +219,8 @@ export function setupEventHandlers(dependencies) {
         // Reset score
         ScoreManager.resetCurrentScore();
         // Also directly update the UI score display to ensure it's reset
-        if (dependencies.uiManager) {
-            dependencies.uiManager.updateScoreDisplay(0, false, true);
+        if (uiManager && typeof uiManager.updateScoreDisplay === 'function') { // Also fixed dependencies.uiManager to uiManager
+            uiManager.updateScoreDisplay(0, false, true);
         }
         logger.debug("Score reset when returning to title");
 

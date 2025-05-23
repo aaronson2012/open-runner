@@ -35,8 +35,10 @@ class PlayerManager {
      * @param {string} powerupType - Type of powerup activated
      */
     handlePowerupActivated(powerupType) {
+        logger.debug(`[PlayerManager] handlePowerupActivated called with type: ${powerupType}`);
         const wasActive = this.player.powerup === powerupType;
         this.player.powerup = powerupType;
+        logger.debug(`[PlayerManager] this.player.powerup set to: ${this.player.powerup}`);
         playWaveFile(effectAudioMap['powerup']);
         
         if (wasActive) {
@@ -45,11 +47,18 @@ class PlayerManager {
         } else {
             logger.info(`${powerupType} powerup started!`);
             // Emit event for visual effect
+            logger.debug(`[PlayerManager] Emitting applyPowerupEffect for type: ${powerupType}`);
             eventBus.emit('applyPowerupEffect', { type: powerupType, player: this.player });
         }
         
         if (this.powerupTimeout) clearTimeout(this.powerupTimeout);
         
+        let duration = gameplayConfig.POWERUP_DURATION * 1000; // Default duration
+        if (powerupType === gameplayConfig.POWERUP_TYPE_INVISIBILITY) {
+            duration = gameplayConfig.invisibilityConfig.durationMs;
+            logger.debug(`Using invisibility specific duration: ${duration}ms`);
+        }
+
         this.powerupTimeout = setTimeout(() => {
             if (this.player.powerup === powerupType) {
                 this.player.powerup = '';
@@ -57,7 +66,7 @@ class PlayerManager {
                 eventBus.emit('removePowerupEffect', { type: powerupType, player: this.player });
             }
             this.powerupTimeout = null;
-        }, gameplayConfig.POWERUP_DURATION * 1000);
+        }, duration);
     }
     
     /**

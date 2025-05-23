@@ -74,6 +74,9 @@ configManager.registerConfig(SECTIONS.DEBUG, debugConfig);
 
 logger.debug('Game configuration sections registered');
 
+// Signal that all core configurations have been registered
+configManager.setInitializationComplete(true);
+logger.info('ConfigManager initialization marked as complete.');
 
 const logLevelString = debugConfig.LOG_LEVEL || 'INFO';
 if (LogLevel.hasOwnProperty(logLevelString)) {
@@ -165,12 +168,3 @@ export { performanceManager };
 
 export default configManager;
 
-// NOTE: Individual constants (like PLAYER_SPEED) and section objects (like WORLD)
-// are NO LONGER exported from this file.
-// Modules should import the specific config file they need, e.g.:
-// import { playerConfig } from './player.js';
-// console.log(playerConfig.SPEED);
-// OR use the helper functions:
-// import { getConfig, getConfigSection, SECTIONS } from './config.js';
-// const speed = getConfig('player.SPEED');
-// const playerSection = getConfigSection(SECTIONS.PLAYER);

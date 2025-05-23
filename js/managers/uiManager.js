@@ -542,6 +542,18 @@ export function setupStartButton(startGameCallback) {
         if (startButtonElement) { // Check if element exists after replace
             startButtonElement.addEventListener('click', () => {
                 logger.debug("Start button clicked!"); // Log click event
+
+                // Initialize audio context on user interaction
+                import('../managers/audioManager.js').then(AudioManager => {
+                    logger.info("Initializing audio context on user interaction");
+                    AudioManager.initAudio();
+                }).catch(err => {
+                    logger.error("Failed to initialize audio:", err);
+                });
+
+                // Also emit a uiButtonClicked event that can be used to resume audio context elsewhere
+                eventBus.emit('uiButtonClicked');
+
                 startGameCallback();
             });
             logger.debug("Start button listener attached."); // Log success

@@ -62,6 +62,239 @@ export class ChunkContentManager {
      * @param {Array<object>} objectDataArray - Array of data generated for objects in this chunk.
      * @returns {{collectibles: THREE.Mesh[], collidables: THREE.Mesh[], enemies: Enemy[], tumbleweeds: Tumbleweed[]}} - References to the created content.
      */
+    _loadEnemy(objectData, chunkKey, enemiesArray) {
+        const enemyInstance = this.enemyManager.spawnEnemy(objectData.type, objectData, this.chunkManager, this.levelConfig);
+        if (enemyInstance) {
+            enemiesArray.push(enemyInstance);
+            objectData.enemyInstance = enemyInstance; // Used by unloadContent
+        } else {
+            logger.error(`Failed to spawn enemy instance for type ${objectData.type} in chunk ${chunkKey}`);
+        }
+    }
+
+    _loadTumbleweed(objectData, chunkKey, tumbleweedsArray, index) {
+        let tumbleweed = this.objectPoolManager.getFromPool('tumbleweeds');
+        if (!tumbleweed) {
+            tumbleweed = new Tumbleweed({
+                position: objectData.position || new THREE.Vector3(0, 0, 0),
+                scale: objectData.scale?.x ?? 1,
+                scene: this.scene,
+                levelConfig: this.levelConfig
+            });
+        } else {
+            if (tumbleweed.object3D) {
+                if (objectData.position) tumbleweed.object3D.position.copy(objectData.position);
+                tumbleweed.object3D.rotation.set(0, 0, 0);
+                const scale = objectData.scale?.x ?? 1;
+                tumbleweed.object3D.scale.set(scale, scale, scale);
+                if (tumbleweed.object3D.parent !== this.scene) this.scene.add(tumbleweed.object3D);
+                tumbleweed.object3D.visible = true;
+            }
+            if (typeof tumbleweed.reset === 'function') tumbleweed.reset();
+        }
+        tumbleweed.object3D.userData.chunkKey = chunkKey;
+        tumbleweed.object3D.userData.objectIndex = index;
+        tumbleweed.object3D.userData.objectType = 'tumbleweed';
+        tumbleweed.object3D.userData.gameObject = tumbleweed;
+        tumbleweed.object3D.name = `tumbleweed_${chunkKey}_${index}`;
+        tumbleweedsArray.push(tumbleweed);
+        this.spatialGrid.add(tumbleweed.object3D);
+        objectData.gameObject = tumbleweed; // Used by unloadContent indirectly
+        objectData.mesh = tumbleweed.object3D; // Used by unloadContent
+    }
+
+    _positionDesertRock(mesh) {
+        const pos = mesh.position;
+        const terrainY = noise2D(
+            pos.x * this.levelConfig.NOISE_FREQUENCY,
+            pos.z * this.levelConfig.NOISE_FREQUENCY
+        ) * this.levelConfig.NOISE_AMPLITUDE;
+        const verticalOffset = 0.6;
+        mesh.position.y = terrainY + verticalOffset;
+        mesh.userData.objectType = 'rock_desert';
+        mesh.userData.stayAlignedWithTerrain = true;
+        mesh.userData.verticalOffset = verticalOffset;
+        logger.debug(`Positioned rock_desert at (${pos.x.toFixed(2)}, ${pos.z.toFixed(2)}) with y=${mesh.position.y.toFixed(2)}`);
+    }
+
+    _loadStandardObject(objectData, chunkKey, collectibleMeshesArray, collidableMeshesArray, index) {
+        let mesh;
+        const poolName = objectData.collidable ? 'obstacles' : 'collectibles';
+        
+        mesh = this.objectPoolManager.getFromPool(poolName, objectData.type);
+        let meshNeedsTransformReset = !!mesh;
+
+        if (!mesh) {
+            meshNeedsTransformReset = false;
+            try {
+                const createdVisual = createObjectVisual(objectData, this.levelConfig);
+                if (createdVisual && createdVisual instanceof Promise) {
+                    logger.warn(`Unexpected Promise for standard object: ${objectData.type} at index ${index}. This object will not be loaded.`);
+                    return;
+                } else if (createdVisual) {
+                    mesh = createdVisual;
+                }
+            } catch (error) {
+                logger.error(`Error creating visual for object type ${objectData.type} at index ${index}:`, error);
+            }
+        }
+
+        if (mesh) {
+            if (meshNeedsTransformReset) {
+                if (objectData.position) mesh.position.copy(objectData.position);
+                
+                if (objectData.type === 'log_fallen') {
+                    mesh.rotation.set(Math.PI / 2, objectData.rotationY ?? 0, 0);
+                    mesh.userData.isRotatedLog = true;
+                    mesh.userData.initialRotationX = Math.PI / 2;
+                } else {
+                    mesh.rotation.set(0, objectData.rotationY ?? 0, 0);
+                }
+                
+                mesh.scale.set(objectData.scale?.x ?? 1, objectData.scale?.y ?? 1, objectData.scale?.z ?? 1);
+                mesh.visible = true;
+            }
+
+            mesh.userData.chunkKey = chunkKey;
+            mesh.userData.objectIndex = index;
+            mesh.userData.objectType = objectData.type;
+            mesh.name = `${objectData.type}_${chunkKey}_${index}`;
+            
+            if (mesh.parent !== this.scene) this.scene.add(mesh);
+            objectData.mesh = mesh; // Used by unloadContent
+
+            if (objectData.collidable) {
+                collidableMeshesArray.push(mesh);
+                if (objectData.type === 'rock_desert') {
+                    this._positionDesertRock(mesh);
+                }
+            } else {
+                collectibleMeshesArray.push(mesh);
+            }
+            this.spatialGrid.add(mesh);
+        }
+    }
+
+    /**
+     * Applies common visual and metadata properties to a tree mesh.
+     * @param {THREE.Mesh} mesh - The tree mesh.
+     * @param {object} objectData - The data for the tree object.
+     * @param {string} chunkKey - The key of the chunk.
+     * @param {number} index - The object's index in the chunk.
+     * @param {boolean} [isRecreated=false] - Flag if the mesh is a recreated version.
+     * @private
+     */
+    _applyTreeVisualProperties(mesh, objectData, chunkKey, index, isRecreated = false) {
+        if (!mesh || !objectData) {
+            logger.warn('ChunkContentManager._applyTreeVisualProperties called with null mesh or objectData', { chunkKey, index });
+            return;
+        }
+        if (objectData.position) mesh.position.copy(objectData.position);
+        mesh.rotation.set(0, objectData.rotationY ?? 0, 0);
+        mesh.scale.set(objectData.scale?.x ?? 1, objectData.scale?.y ?? 1, objectData.scale?.z ?? 1);
+        // mesh.visible will be set after finalization by the caller (_loadPineTree)
+
+        mesh.userData.chunkKey = chunkKey;
+        mesh.userData.objectIndex = index;
+        mesh.userData.objectType = objectData.type; // Should be 'tree_pine'
+        mesh.name = `${objectData.type}_${chunkKey}_${index}${isRecreated ? '_recreated' : ''}`;
+    }
+
+    /**
+     * Ensures a tree mesh is complete (has trunk and foliage), recreating it if necessary.
+     * @param {THREE.Mesh} treeToVerify - The initial tree mesh to check (assumed non-null).
+     * @param {object} objectData - The data for the tree object.
+     * @param {string} chunkKey - The key of the chunk.
+     * @param {number} index - The object's index in the chunk.
+     * @returns {THREE.Mesh} The finalized, complete tree mesh.
+     * @private
+     */
+    _ensureCompleteTree(treeToVerify, objectData, chunkKey, index) {
+        // treeToVerify is assumed to be non-null and to have had _applyTreeVisualProperties called on it.
+        let hasTrunk = false, hasFoliage = false;
+        const config = C_MODELS.TREE_PINE; // C_MODELS is module-scoped from imports
+
+        treeToVerify.traverse(child => {
+            if (child.name === config.TRUNK_NAME) hasTrunk = true;
+            if (child.name === config.FOLIAGE_NAME) hasFoliage = true;
+        });
+
+        if (hasTrunk && hasFoliage) {
+            return treeToVerify; // Tree is complete
+        } else {
+            logger.warn(`Tree (index: ${index}, name: ${treeToVerify.name}, chunk: ${chunkKey}) from createObjectVisual is incomplete (trunk: ${hasTrunk}, foliage: ${hasFoliage}). Recreating with ModelFactory.`);
+            
+            // Dispose of the incomplete treeMesh's geometry/materials if it's a new object and not from a pool.
+            // This is complex if createObjectVisual might return pooled objects.
+            // For now, we assume the incomplete treeToVerify (if not added to scene) will be garbage collected
+            // or handled by its original creator/pool if it was from one.
+
+            const recreatedTree = ModelFactory.createTreeMesh();
+            this._applyTreeVisualProperties(recreatedTree, objectData, chunkKey, index, true); // Mark as recreated
+            return recreatedTree;
+        }
+    }
+
+    _loadPineTree(objectData, chunkKey, collectibleMeshesArray, collidableMeshesArray, index) {
+        createObjectVisual(objectData, this.levelConfig)
+            .then(initialMeshFromVisual => {
+                let currentTreeMesh;
+
+                if (!initialMeshFromVisual) {
+                    logger.warn(`createObjectVisual returned null for tree (chunk: ${chunkKey}, index: ${index}). Attempting fallback creation.`);
+                    currentTreeMesh = ModelFactory.createTreeMesh();
+                    this._applyTreeVisualProperties(currentTreeMesh, objectData, chunkKey, index, true); // Mark as recreated
+                } else {
+                    currentTreeMesh = initialMeshFromVisual;
+                    this._applyTreeVisualProperties(currentTreeMesh, objectData, chunkKey, index, false); // Standard application
+                }
+
+                // Verify the tree (either from createObjectVisual or the first fallback) and recreate if necessary
+                const finalTreeMesh = this._ensureCompleteTree(currentTreeMesh, objectData, chunkKey, index);
+                
+                finalTreeMesh.visible = true; // Set visibility on the finalized mesh
+
+                if (finalTreeMesh.parent !== this.scene) {
+                    this.scene.add(finalTreeMesh);
+                }
+                objectData.mesh = finalTreeMesh; // Used by unloadContent
+
+                if (objectData.collidable) {
+                    collidableMeshesArray.push(finalTreeMesh);
+                } else {
+                    // Trees are typically collidable, but respecting the data if not
+                    collectibleMeshesArray.push(finalTreeMesh);
+                }
+                this.spatialGrid.add(finalTreeMesh);
+            })
+            .catch(error => {
+                logger.error(`Error during initial creation of tree (chunk: ${chunkKey}, index: ${index}): ${error.stack || error}. Attempting fallback creation.`);
+                try {
+                    const fallbackTree = ModelFactory.createTreeMesh();
+                    this._applyTreeVisualProperties(fallbackTree, objectData, chunkKey, index, true); // Mark as recreated
+                    
+                    // Assuming ModelFactory.createTreeMesh() produces a complete tree,
+                    // so _ensureCompleteTree is not strictly needed here but could be added for extreme safety.
+                    fallbackTree.visible = true;
+
+                    if (fallbackTree.parent !== this.scene) {
+                        this.scene.add(fallbackTree);
+                    }
+                    objectData.mesh = fallbackTree;
+
+                    if (objectData.collidable) {
+                        collidableMeshesArray.push(fallbackTree);
+                    } else {
+                        collectibleMeshesArray.push(fallbackTree);
+                    }
+                    this.spatialGrid.add(fallbackTree);
+                    logger.info(`Successfully created fallback tree for (chunk: ${chunkKey}, index: ${index}) after promise rejection.`);
+                } catch (fallbackError) {
+                    logger.error(`CRITICAL: Failed to create even a fallback tree for (chunk: ${chunkKey}, index: ${index}): ${fallbackError.stack || fallbackError}`);
+                }
+            });
+    }
+
     loadContent(chunkKey, objectDataArray) {
         if (!this.levelConfig) {
             logger.error(`Cannot load content for chunk ${chunkKey}, levelConfig is not set!`);
@@ -74,213 +307,17 @@ export class ChunkContentManager {
         const tumbleweeds = [];
 
         objectDataArray.forEach((objectData, index) => {
+            // objectData.objectIndex is set to `index` by ObjectGenerator
             const enemyTypesForLevel = this.levelConfig?.ENEMY_TYPES || [];
+
             if (enemyTypesForLevel.includes(objectData.type)) {
-                // Pass the stored chunkManager reference to spawnEnemy
-                const enemyInstance = this.enemyManager.spawnEnemy(objectData.type, objectData, this.chunkManager, this.levelConfig);
-                if (enemyInstance) {
-                    enemies.push(enemyInstance);
-                    objectData.enemyInstance = enemyInstance;
-                } else {
-                     logger.error(`Failed to spawn enemy instance for type ${objectData.type} in chunk ${chunkKey}`);
-                }
+                this._loadEnemy(objectData, chunkKey, enemies);
             } else if (objectData.type === 'tumbleweed' && objectData.isDynamic) {
-                let tumbleweed = this.objectPoolManager.getFromPool('tumbleweeds');
-                if (!tumbleweed) {
-                    tumbleweed = new Tumbleweed({
-                        position: objectData.position || new THREE.Vector3(0, 0, 0),
-                        scale: objectData.scale?.x ?? 1,
-                        scene: this.scene,
-                        levelConfig: this.levelConfig
-                    });
-                } else {
-                    if (tumbleweed.object3D) {
-                        if (objectData.position) tumbleweed.object3D.position.copy(objectData.position);
-                        tumbleweed.object3D.rotation.set(0, 0, 0);
-                        const scale = objectData.scale?.x ?? 1;
-                        tumbleweed.object3D.scale.set(scale, scale, scale);
-                        if (tumbleweed.object3D.parent !== this.scene) this.scene.add(tumbleweed.object3D);
-                        tumbleweed.object3D.visible = true;
-                    }
-                    if (typeof tumbleweed.reset === 'function') tumbleweed.reset();
-                }
-                tumbleweed.object3D.userData.chunkKey = chunkKey;
-                tumbleweed.object3D.userData.objectIndex = index;
-                tumbleweed.object3D.userData.objectType = 'tumbleweed';
-                tumbleweed.object3D.userData.gameObject = tumbleweed;
-                tumbleweed.object3D.name = `tumbleweed_${chunkKey}_${index}`;
-                tumbleweeds.push(tumbleweed);
-                this.spatialGrid.add(tumbleweed.object3D);
-                objectData.gameObject = tumbleweed;
-                objectData.mesh = tumbleweed.object3D;
+                this._loadTumbleweed(objectData, chunkKey, tumbleweeds, index);
+            } else if (objectData.type === 'tree_pine') {
+                this._loadPineTree(objectData, chunkKey, collectibleMeshes, collidableMeshes, index);
             } else {
-                let mesh;
-                const poolName = objectData.collidable ? 'obstacles' : 'collectibles';
-                mesh = this.objectPoolManager.getFromPool(poolName, objectData.type);
-
-                // For tree_pine objects, NEVER use the object pool - always create new ones
-                // This ensures trees are always complete and correctly structured
-                if (objectData.type === 'tree_pine') {
-                    // Return the mesh to the pool if it was retrieved
-                    if (mesh) {
-                        this.objectPoolManager.addToPool(poolName, mesh);
-                    }
-                    
-                    // Force creation of a fresh tree
-                    mesh = null;
-                }
-
-                // Process objects differently if object type is tree_pine to use promise-based approach
-                if (objectData.type === 'tree_pine') {
-                    // Just set mesh to null and skip adding it now
-                    // It will be added via promise resolution
-                    createObjectVisual(objectData, this.levelConfig)
-                        .then(result => {
-                            if (result) {
-                                // Process the result when it's ready
-                                const treeMesh = result;
-                                
-                                // Apply position/rotation/scale
-                                if (objectData.position) treeMesh.position.copy(objectData.position);
-                                treeMesh.rotation.set(0, objectData.rotationY ?? 0, 0);
-                                treeMesh.scale.set(objectData.scale?.x ?? 1, objectData.scale?.y ?? 1, objectData.scale?.z ?? 1);
-                                treeMesh.visible = true;
-                                
-                                // Add metadata
-                                treeMesh.userData.chunkKey = chunkKey;
-                                treeMesh.userData.objectIndex = objectData.objectIndex;
-                                treeMesh.userData.objectType = objectData.type;
-                                treeMesh.name = `${objectData.type}_${chunkKey}_${objectData.objectIndex}`;
-                                
-                                // Add to scene
-                                if (treeMesh.parent !== this.scene) this.scene.add(treeMesh);
-                                objectData.mesh = treeMesh;
-                                
-                                // Add to the right collection
-                                if (objectData.collidable) {
-                                    collidableMeshes.push(treeMesh);
-                                } else {
-                                    collectibleMeshes.push(treeMesh);
-                                }
-                                
-                                // Update spatial grid
-                                this.spatialGrid.add(treeMesh);
-                            }
-                        })
-                        .catch(error => {
-                            logger.error(`Error creating tree in promise: ${error}`);
-                        });
-                        
-                    // Set mesh to null to indicate we've handled this object through promises
-                    mesh = null;
-                }
-                
-                if (!mesh) {
-                    try {
-                        // Create the object visual based on its type
-                        if (objectData.type === 'tree_pine') {
-                            // Tree objects already handled by Promise-based approach
-                            // This case should not occur
-                            logger.warn("Tree object creation attempted in synchronous path - should be using async route");
-                        } else {
-                            // For non-tree objects, create synchronously using createObjectVisual
-                            const createdVisual = createObjectVisual(objectData, this.levelConfig);
-                            
-                            // Check if the result is a Promise (for tree objects)
-                            if (createdVisual && createdVisual instanceof Promise) {
-                                logger.warn(`Unexpected Promise returned for non-tree object: ${objectData.type}`);
-                            } 
-                            // Otherwise, use the directly returned mesh
-                            else if (createdVisual) {
-                                mesh = createdVisual;
-                                // Position/scale/rotation should already be set by createObjectVisual
-                            }
-                        }
-                    } catch (error) {
-                        logger.error(`Error creating visual for object type ${objectData.type}:`, error);
-                        mesh = null;
-                    }
-                } else if (!objectData.positionSet) {
-                    // Only set position/rotation/scale if not already set (for trees)
-                    if (objectData.position) mesh.position.copy(objectData.position);
-                    
-                    // Special handling for logs to ensure they remain horizontal
-                    if (objectData.type === 'log_fallen') {
-                        mesh.rotation.set(Math.PI / 2, objectData.rotationY ?? 0, 0);
-                        // Add a flag to userData
-                        mesh.userData.isRotatedLog = true;
-                        mesh.userData.initialRotationX = Math.PI / 2;
-                    } else {
-                        mesh.rotation.set(0, objectData.rotationY ?? 0, 0);
-                    }
-                    
-                    mesh.scale.set(objectData.scale?.x ?? 1, objectData.scale?.y ?? 1, objectData.scale?.z ?? 1);
-                    mesh.visible = true;
-                }
-
-                if (mesh) {
-                    mesh.userData.chunkKey = chunkKey;
-                    mesh.userData.objectIndex = index;
-                    mesh.userData.objectType = objectData.type;
-                    mesh.name = `${objectData.type}_${chunkKey}_${index}`;
-                    
-                    // One final verification for trees before adding to scene
-                    if (objectData.type === 'tree_pine') {
-                        // Verify the tree is complete
-                        let hasTrunk = false, hasFoliage = false;
-                        const config = C_MODELS.TREE_PINE;
-                        
-                        mesh.traverse(child => {
-                            if (child.name === config.TRUNK_NAME) hasTrunk = true;
-                            if (child.name === config.FOLIAGE_NAME) hasFoliage = true;
-                        });
-                        
-                        if (!hasTrunk || !hasFoliage) {
-                            logger.error(`CRITICAL: Tree still incomplete before scene add. Creating new tree.`);
-                            
-                            // Create a completely new tree
-                            mesh = ModelFactory.createTreeMesh();
-                            mesh.position.copy(objectData.position);
-                            mesh.rotation.set(0, objectData.rotationY ?? 0, 0);
-                            mesh.scale.set(objectData.scale?.x ?? 1, objectData.scale?.y ?? 1, objectData.scale?.z ?? 1);
-                            mesh.userData.chunkKey = chunkKey;
-                            mesh.userData.objectIndex = index;
-                            mesh.userData.objectType = objectData.type;
-                            mesh.name = `${objectData.type}_${chunkKey}_${index}`;
-                        }
-                    }
-                    
-                    if (mesh.parent !== this.scene) this.scene.add(mesh);
-                    objectData.mesh = mesh;
-
-                    if (objectData.collidable) {
-                        collidableMeshes.push(mesh);
-
-                        // Special handling for desert rocks to ensure they stay above ground
-                        if (objectData.type === 'rock_desert') {
-                            // Make sure the rock is properly positioned above the terrain
-                            const pos = mesh.position;
-                            const terrainY = noise2D(
-                                pos.x * this.levelConfig.NOISE_FREQUENCY,
-                                pos.z * this.levelConfig.NOISE_FREQUENCY
-                            ) * this.levelConfig.NOISE_AMPLITUDE;
-
-                            // Use a fixed vertical offset for desert rocks
-                            const verticalOffset = 0.6;
-                            mesh.position.y = terrainY + verticalOffset;
-
-                            // Ensure userData is set correctly
-                            mesh.userData.objectType = 'rock_desert';
-                            mesh.userData.stayAlignedWithTerrain = true;
-                            mesh.userData.verticalOffset = verticalOffset;
-
-                            logger.debug(`Positioned rock_desert at (${pos.x.toFixed(2)}, ${pos.z.toFixed(2)}) with y=${mesh.position.y.toFixed(2)}`);
-                        }
-                    } else {
-                        collectibleMeshes.push(mesh);
-                    }
-                    this.spatialGrid.add(mesh);
-                }
+                this._loadStandardObject(objectData, chunkKey, collectibleMeshes, collidableMeshes, index);
             }
         });
 
@@ -392,10 +429,13 @@ export class ChunkContentManager {
         const magnetRadius = gameplayConfig.MAGNET_POWERUP_RADIUS;
         const magnetForce = gameplayConfig.MAGNET_POWERUP_FORCE;
 
-        for (const [key, chunkData] of loadedChunks.entries()) {
-            // Update static objects that need to stay aligned with terrain
-            this._updateTerrainAlignedObjects(chunkData);
+        // Log magnet-related states for debugging
+        if (playerPowerup === gameplayConfig.POWERUP_TYPE_MAGNET || magnetActive) { // Log if magnet is supposed to be active or is detected as active
+            logger.debug(`[ChunkContentManager] updateCollectibles: playerPowerup: "${playerPowerup}", gameplayConfig.POWERUP_TYPE_MAGNET: "${gameplayConfig.POWERUP_TYPE_MAGNET}"`);
+            logger.debug(`[ChunkContentManager] updateCollectibles: magnetActive: ${magnetActive}, magnetRadius: ${magnetRadius}, magnetForce: ${magnetForce}`);
+        }
 
+        for (const [key, chunkData] of loadedChunks.entries()) {
             // Use the contentManagerData references for iteration
             const collectibles = chunkData.contentManagerData?.collectibles;
             if (collectibles && collectibles.length > 0) {
@@ -486,7 +526,7 @@ export class ChunkContentManager {
                                         const coinValue = scoreValue || gameplayConfig.DEFAULT_COIN_SCORE;
                                         const finalValue = doublerActive ? coinValue * gameplayConfig.DOUBLER_MULTIPLIER : coinValue;
                                         eventBus.emit('scoreChanged', finalValue);
-                                        logger.debug(`Collected coin with final value ${finalValue} (doubler active: ${doublerActive})`);
+                                        logger.debug(`Collected coin (magnet pull) with final value ${finalValue} (doubler active: ${doublerActive})`);
                                     }
                                 }
                             } else if (newDistanceSq > minSafeDistanceSq) {

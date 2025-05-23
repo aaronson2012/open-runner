@@ -7,6 +7,16 @@ export const playerConfig = {
     RAYCAST_ORIGIN_OFFSET: 5,
     RAYCAST_STRIDE_OFFSET: 1.0,
 
+    // Falling physics
+    GRAVITY: 30.0, // Acceleration due to gravity
+    MAX_FALL_SPEED: 60.0, // Maximum speed the player can fall at
+    MIN_Y_POSITION: -50.0, // Position below which player is considered out of bounds
+// Slope handling
+    MAX_CLIMBABLE_SLOPE_ANGLE: 45.0, // Maximum angle in degrees player can climb
+    SLIDE_SPEED_FACTOR: 1.5, // How fast player slides on steep slopes (multiplier of current speed)
+    SLOPE_NORMAL_SMOOTHING_FACTOR: 0.1, // Factor for smoothing player orientation to slope normal (0-1, lower is smoother)
+    PLAYER_ALIGN_TO_SLOPE_SPEED: 5.0, // Speed at which player model aligns to slope normal
+    SLOPE_ALIGNMENT_FACTOR: 0.3, // How much the player leans into the slope (0 = no lean, 1 = full align)
 
     HEAD_SIZE: 1.5,
     TORSO_HEIGHT: 3,

@@ -2,6 +2,7 @@ import { Game } from './game.js';
 import * as UIManager from '../managers/uiManager.js';
 import { isMobileDevice, updateMobileControlsVisibility } from '../utils/deviceUtils.js';
 import { createLogger } from '../utils/logger.js';
+import { debugConfig } from '../config/debug.js';
 
 const logger = createLogger('Main');
 
@@ -38,8 +39,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         logger.info("Creating game instance");
         const game = new Game(canvas);
         
-        // Expose game instance globally for debugging
-        window.game = game;
+        // Conditionally expose game instance globally for debugging
+        if (debugConfig.LOG_LEVEL === 'DEBUG') {
+            window.game = game;
+            logger.debug("Game instance exposed to window.game for debugging");
+        }
 
         logger.info("Initializing game...");
         const initialized = await game.init();

@@ -7,6 +7,7 @@ import { noise2D } from '../../rendering/terrainGenerator.js'; // Updated path
 import eventBus from '../../core/eventBus.js'; // Updated path
 import { tumbleweedConfig as C } from '../../config/tumbleweed.js'; // Import specific config object and alias it
 import { randomRange } from '../../utils/mathUtils.js'; // Import randomRange if needed
+import PlayerCharacter from '../playerCharacter.js'; // For player orientation and JSDoc
 
 /**
  * Tumbleweed GameObject
@@ -20,6 +21,7 @@ export default class Tumbleweed /* extends GameObject */ { // Removed inheritanc
      * @param {number} options.scale - Scale factor
      * @param {THREE.Scene} options.scene - Scene to add to
      * @param {Object} options.levelConfig - Level configuration
+     * @param {PlayerCharacter} options.player - The player character instance
      */
     constructor(options = {}) {
         // super({ // Base class removed
@@ -40,6 +42,7 @@ export default class Tumbleweed /* extends GameObject */ { // Removed inheritanc
 
         this.scene = options.scene;
         this.levelConfig = options.levelConfig;
+        this.player = options.player; // Store player reference
         this.scale = options.scale || 1.0;
 
         // Tumbleweed properties - Use constants and randomRange
@@ -214,9 +217,15 @@ export default class Tumbleweed /* extends GameObject */ { // Removed inheritanc
         this._updateTerrainHeight();
 
         // Calculate initial direction toward player's path using reusable objects
-        const playerDirection = this._tempVec3_1.set(0, 0, -1).applyQuaternion(
-            this._tempQuat_1.setFromEuler(this._tempEuler.set(0, 0, 0)) // Use reusable Euler and Quaternion
-        );
+        // Get player's actual forward direction
+        if (this.player && this.player.object3D) {
+            this.player.object3D.getWorldDirection(this._tempVec3_1); // _tempVec3_1 now holds player's world direction
+        } else {
+            // Fallback to original assumption if player object is not available
+            this._tempVec3_1.set(0, 0, -1);
+            // console.warn('Tumbleweed (_activate): Player object not available for orientation, defaulting to Z-forward.');
+        }
+        const playerDirection = this._tempVec3_1; // Use the vector directly
 
         // Calculate a point ahead of the player using constants and reusable objects
         const targetAheadDistance = randomRange(C.TARGET_AHEAD_MIN, C.TARGET_AHEAD_MAX);
@@ -267,9 +276,15 @@ export default class Tumbleweed /* extends GameObject */ { // Removed inheritanc
         // Only adjust direction if we have some velocity (use constant)
         if (velocity.lengthSq() > C.MIN_VELOCITY_SQ_THRESHOLD) {
             // Calculate direction to player's path using reusable objects
-            const playerForward = this._tempVec3_2.set(0, 0, -1).applyQuaternion(
-                this._tempQuat_1.setFromEuler(this._tempEuler.set(0, 0, 0)) // Use reusable Euler and Quaternion
-            );
+            // Get player's actual forward direction
+            if (this.player && this.player.object3D) {
+                this.player.object3D.getWorldDirection(this._tempVec3_2); // _tempVec3_2 now holds player's world direction
+            } else {
+                // Fallback to original assumption if player object is not available
+                this._tempVec3_2.set(0, 0, -1);
+                // console.warn('Tumbleweed (_updateMovement): Player object not available for orientation, defaulting to Z-forward.');
+            }
+            const playerForward = this._tempVec3_2; // Use the vector directly
 
             // Calculate a point ahead of the player using constants and reusable objects
             const targetAheadDistance = randomRange(C.UPDATE_TARGET_AHEAD_MIN, C.UPDATE_TARGET_AHEAD_MAX);
@@ -334,34 +349,40 @@ export default class Tumbleweed /* extends GameObject */ { // Removed inheritanc
             pos.z * this.levelConfig.NOISE_FREQUENCY
         ) * this.levelConfig.NOISE_AMPLITUDE;
 
-        // ALWAYS force the tumbleweed to stay above the terrain
-        // This is a hard constraint that prevents it from ever sinking
-        const desiredY = terrainY + C.TERRAIN_ADJUST_THRESHOLD;
+        // Calculate the desired Y position, including a threshold to stay above terrain.
+        const targetY = terrainY + C.TERRAIN_ADJUST_THRESHOLD;
 
-        // Force position to be at or above the desired height
-        if (pos.y < desiredY) {
-            pos.y = desiredY;
+        // Smoothly interpolate the Tumbleweed's Y position towards the targetY.
+        // THREE.MathUtils.lerp(current, target, alpha)
+        // A smaller GROUND_FOLLOW_SMOOTH_FACTOR results in smoother, less aggressive following.
+        pos.y = THREE.MathUtils.lerp(pos.y, targetY, C.GROUND_FOLLOW_SMOOTH_FACTOR);
 
-            // If we were moving downward, bounce
-            if (this.physics.velocity.y < 0) {
-                // More aggressive bounce to keep it visible
-                this.physics.velocity.y = Math.abs(this.physics.velocity.y) * C.GROUND_BOUNCE_FACTOR + 0.5;
-            } else {
-                // If we weren't moving downward but still below terrain, add upward velocity
-                this.physics.velocity.y += 0.5;
-            }
+
+        // If the tumbleweed is below the target Y after interpolation (e.g., due to fast fall or steep slope)
+        // and its vertical velocity is negative (moving downwards), make it bounce.
+        if (pos.y < targetY && this.physics.velocity.y < 0) {
+            // Apply a bounce. The bounce factor determines how much velocity is retained.
+            // A small upward push is added to ensure it clears the terrain.
+            this.physics.velocity.y = Math.abs(this.physics.velocity.y) * C.GROUND_BOUNCE_FACTOR + 0.5; // Added 0.5 for a bit more push
+        } else if (pos.y < targetY) {
+            // If it's below the targetY but not moving downwards (or moving upwards slowly),
+            // gently push it up to prevent sinking over time on flat or gentle slopes.
+            this.physics.velocity.y += 0.2; // Gentle upward push
         }
 
-        // Prevent the tumbleweed from ever having too much downward velocity
-        // This helps prevent it from tunneling through the terrain
-        if (this.physics.velocity.y < -5) {
-            this.physics.velocity.y = -5;
+
+        // Clamp the maximum downward velocity to prevent tunneling through terrain.
+        // Uses the new MAX_DOWNWARD_VELOCITY_CLAMP config.
+        if (this.physics.velocity.y < C.MAX_DOWNWARD_VELOCITY_CLAMP) {
+            this.physics.velocity.y = C.MAX_DOWNWARD_VELOCITY_CLAMP;
         }
 
-        // Apply a minimum upward velocity if close to the ground
-        // This helps keep it visible above the terrain
-        if (pos.y < desiredY + 0.5 && this.physics.velocity.y < 0.2) {
-            this.physics.velocity.y = 0.2;
+        // Apply a minimum upward velocity if the Tumbleweed is very close to the ground
+        // and not already moving upwards sufficiently. This helps maintain a slight hover or
+        // prevents it from appearing "stuck" to the ground.
+        // Uses MIN_UPWARD_PUSH_OFFSET and MIN_UPWARD_VELOCITY_NEAR_GROUND configs.
+        if (pos.y < targetY + C.MIN_UPWARD_PUSH_OFFSET && this.physics.velocity.y < C.MIN_UPWARD_VELOCITY_NEAR_GROUND) {
+            this.physics.velocity.y = C.MIN_UPWARD_VELOCITY_NEAR_GROUND;
         }
     }
 

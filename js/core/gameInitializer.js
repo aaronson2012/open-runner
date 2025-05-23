@@ -69,6 +69,7 @@ export async function initializeGame(canvasElement) {
             powerup: '',
         };
         player.model.position.set(playerConfig.INITIAL_POS_X, playerConfig.INITIAL_POS_Y, playerConfig.INITIAL_POS_Z);
+        player.model.rotation.y = Math.PI; // Set initial rotation to face -Z (forward)
 
         cameraManager.setCamera(camera);
         cameraManager.setRenderer(renderer);

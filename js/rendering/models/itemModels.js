@@ -9,6 +9,10 @@ const logger = createLogger('ItemModels');
  * Creates a procedural Magnet powerup model.
  * @param {object} [properties] - Optional properties (e.g., size, color).
  * @returns {THREE.Group} The magnet model group.
+ * @description This function creates a new THREE.Group for the magnet model.
+ * It also generates and applies its own THREE.MeshStandardMaterial instances
+ * for the different parts of the magnet. These materials are unique to this
+ * specific model instance and are not sourced from AssetManager.
  */
 export function createMagnetModel(properties) {
     const group = new THREE.Group();
@@ -52,6 +56,12 @@ export function createMagnetModel(properties) {
     tiltedGroup.rotation.z = config.TILTED_GROUP_ROTATION_Z;
     tiltedGroup.rotation.y = config.TILTED_GROUP_ROTATION_Y;
     tiltedGroup.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
+    tiltedGroup.userData = {
+        objectType: 'magnet',
+        collidable: false,
+        powerupType: config.POWERUP_TYPE || 'magnet'
+    };
+    tiltedGroup.name = "magnet_powerup";
     return tiltedGroup;
 }
 
@@ -61,6 +71,10 @@ export function createMagnetModel(properties) {
  * @param {number} props.size - Size of the doubler model
  * @param {number} props.color - Color of the doubler model
  * @returns {THREE.Group} The complete doubler model
+ * @description This function creates a new THREE.Group for the doubler model.
+ * It also generates and applies its own THREE.MeshStandardMaterial instance
+ * for the model. This material is unique to this specific model instance
+ * and is not sourced from AssetManager.
  */
 export function createDoublerModel(props = {}) {
   const group = new THREE.Group();
@@ -98,7 +112,12 @@ export function createDoublerModel(props = {}) {
   group.add(center);
   
   // Set a name for identification
-  group.name = "doubler";
+  group.name = "doubler_powerup";
+  group.userData = {
+      objectType: 'doubler',
+      collidable: false,
+      powerupType: C_MODELS.DOUBLER.POWERUP_TYPE || 'doubler'
+  };
   
   return group;
 }
@@ -109,6 +128,10 @@ export function createDoublerModel(props = {}) {
  * @param {number} props.size - Size of the invisibility model
  * @param {number} props.color - Color of the invisibility model
  * @returns {THREE.Group} The complete invisibility model
+ * @description This function creates a new THREE.Group for the invisibility model.
+ * It also generates and applies its own THREE.MeshStandardMaterial instances
+ * for the different parts of the model (sphere, aura, particles). These materials
+ * are unique to this specific model instance and are not sourced from AssetManager.
  */
 
 export function createInvisibilityModel(props = {}) {

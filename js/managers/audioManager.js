@@ -7,10 +7,19 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('AudioManager');
 
-let audioContext = null;
-let masterGain = null;
-let musicSource = null;
+let currentMusicAudio = null;
 let currentMusicId = null;
+let masterVolume = audioConfig.INITIAL_MASTER_GAIN || 0.7;
+let hasUserInteracted = false;
+let audioUnlocked = false;
+let pendingMusicRequest = null;
+
+// Audio element pools for effects (to allow overlapping sounds)
+const effectAudioPools = {};
+const musicAudioElements = {};
+
+// Queue for pending audio actions
+const pendingAudioQueue = [];
 
 const levelAudioMap = {
     'theme': '/assets/audio/openrunnertheme.wav',
@@ -28,27 +37,158 @@ export const effectAudioMap = {
 }
 
 /**
+ * Creates an audio element pool for effects to allow overlapping sounds
+ */
+function createAudioPool(src, poolSize = 3) {
+    const pool = [];
+    for (let i = 0; i < poolSize; i++) {
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        audio.volume = 0.5 * masterVolume;
+        pool.push(audio);
+    }
+    return pool;
+}
+
+/**
+ * Gets an available audio element from the pool
+ */
+function getAvailableAudio(pool) {
+    // Find an audio element that's not currently playing
+    let availableAudio = pool.find(audio => audio.paused || audio.ended);
+    
+    // If none available, use the first one (interrupt it)
+    if (!availableAudio) {
+        availableAudio = pool[0];
+        availableAudio.currentTime = 0;
+    }
+    
+    return availableAudio;
+}
+
+/**
+ * Tracks the first user interaction to unlock audio
+ */
+function trackUserInteraction() {
+    if (hasUserInteracted) return;
+    
+    hasUserInteracted = true;
+    logger.info('First user interaction detected - unlocking audio');
+    
+    // Try to unlock audio by playing a silent sound
+    unlockAudio().then(() => {
+        // Process any pending audio requests
+        if (pendingMusicRequest) {
+            const { levelId, volume } = pendingMusicRequest;
+            pendingMusicRequest = null;
+            playMusic(levelId, volume);
+        }
+        
+        // Process queued audio actions
+        while (pendingAudioQueue.length > 0) {
+            const action = pendingAudioQueue.shift();
+            action();
+        }
+    });
+}
+
+/**
+ * Attempts to unlock audio by playing a silent audio file
+ */
+async function unlockAudio() {
+    if (audioUnlocked) return true;
+    
+    try {
+        // Create a silent audio element to test/unlock audio
+        const silentAudio = new Audio('data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////8AAABhTEFNRTMuMTAwA6kAAAAAAAAAABRAJAOHQQAB9AAAASAAhb6+p');
+        silentAudio.volume = 0.01;
+        
+        await silentAudio.play();
+        audioUnlocked = true;
+        logger.info('Audio successfully unlocked');
+        return true;
+        
+    } catch (e) {
+        logger.warn('Audio unlock failed:', e.message);
+        // Even if unlock fails, mark as attempted so we don't keep trying
+        audioUnlocked = true;
+        return false;
+    }
+}
+
+/**
+ * Sets up global user interaction listeners
+ */
+function setupUserInteractionTracking() {
+    const events = ['click', 'touchstart', 'keydown'];
+    
+    const handleInteraction = () => {
+        trackUserInteraction();
+        // Remove listeners after first interaction
+        events.forEach(event => {
+            document.removeEventListener(event, handleInteraction);
+        });
+    };
+    
+    events.forEach(event => {
+        document.addEventListener(event, handleInteraction, { passive: true });
+    });
+}
+
+/**
+ * Initializes all audio elements and pools
+ */
+export function initAudio() {
+    logger.info('Initializing HTML5 audio system');
+    
+    try {
+        // Create effect audio pools
+        Object.entries(effectAudioMap).forEach(([key, src]) => {
+            effectAudioPools[key] = createAudioPool(src, 3);
+        });
+        
+        // Create music audio elements
+        Object.entries(levelAudioMap).forEach(([key, src]) => {
+            const audio = new Audio(src);
+            audio.preload = 'auto';
+            audio.loop = true;
+            audio.volume = 0.3 * masterVolume;
+            
+            // Handle loading errors
+            audio.addEventListener('error', (e) => {
+                logger.error(`Failed to load music ${key}:`, e);
+            });
+            
+            musicAudioElements[key] = audio;
+        });
+        
+        setupEventListeners();
+        setupUserInteractionTracking();
+        logger.info('HTML5 audio system initialized successfully');
+        
+    } catch (e) {
+        logger.error('HTML5 audio initialization failed:', e);
+        UIManager.displayError(new Error('Audio system failed to initialize. Audio will be disabled.'));
+    }
+}
+
+/**
  * Sets up the event listeners for the AudioManager.
- * Assumes audioContext is initialized.
  */
 function setupEventListeners() {
-    if (!audioContext) return;
-
     // Listen for player death (collision)
     eventBus.subscribe('playerDied', () => {
        playWaveFile(effectAudioMap['collision']);
     });
 
-    eventBus.subscribe('gameStateChanged', ({ newState, previousState }) => { // Destructure newState and previousState
+    eventBus.subscribe('gameStateChanged', ({ newState, previousState }) => {
         logger.info(`Audio handling game state change: ${previousState} -> ${newState}`);
 
         if (newState === GameStates.GAME_OVER) {
-
             playWaveFile(effectAudioMap['gameover']);
         } else if (newState === GameStates.TITLE) {
-
             if (currentMusicId !== 'theme') {
-                stopMusic(); // Explicitly stop any current music first
+                stopMusic();
                 setTimeout(() => {
                     playMusic('theme');
                     logger.info("Playing theme music when returning to title screen");
@@ -60,7 +200,7 @@ function setupEventListeners() {
             const currentLevelId = LevelManager.getCurrentLevelId();
             
             if (currentMusicId !== currentLevelId) {
-                stopMusic(); // Explicitly stop any current music first
+                stopMusic();
                 setTimeout(() => {
                     playMusic(LevelManager.getCurrentLevelId());
                 }, 50);
@@ -69,213 +209,179 @@ function setupEventListeners() {
     });
 
     eventBus.subscribe('scoreChanged', (scoreIncrement) => {
-
         if (scoreIncrement > 0) {
             playWaveFile(effectAudioMap['coin']);
         }
     });
 
-
     eventBus.subscribe('uiButtonClicked', () => {
+        // Button clicks are perfect user interactions for unlocking audio
+        trackUserInteraction();
         playWaveFile(effectAudioMap['buttonclick']);
     });
 }
 
 /**
- * Initializes the Web Audio API AudioContext and sets up event listeners.
- * Must be called after a user interaction (e.g., button click).
- */
-export function initAudio() {
-    if (audioContext) {
-        return; // Already initialized
-    }
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        masterGain = audioContext.createGain();
-        masterGain.gain.setValueAtTime(audioConfig.INITIAL_MASTER_GAIN, audioContext.currentTime);
-        masterGain.connect(audioContext.destination);
-
-
-        if (audioContext.state === 'suspended') {
-            audioContext.resume().then(() => {
-                 setupEventListeners();
-            }).catch(e => {
-                 logger.error("Failed to resume AudioContext:", e);
-                 UIManager.displayError(new Error('Failed to resume audio context. Audio might not work.'));
-            });
-        } else {
-             setupEventListeners();
-        }
-
-    } catch (e) {
-
-        UIManager.displayError(new Error('Web Audio API is not supported or failed to initialize. Game audio will be disabled.'));
-        logger.error('Web Audio API initialization failed:', e);
-        audioContext = null;
-    }
-}
-
-/**
  * Stops the currently playing background music.
- * Uses a robust approach to ensure music actually stops.
  * @returns {Promise<boolean>} Promise that resolves to true if music was stopped
  */
 export async function stopMusic() {
     logger.info("[AudioManager] Stopping music");
-    try {
     
-        if (musicSource) {
-            if (masterGain) {
-                masterGain.disconnect();
-                masterGain = audioContext.createGain();
-                masterGain.gain.setValueAtTime(audioConfig.INITIAL_MASTER_GAIN, audioContext.currentTime);
-                masterGain.connect(audioContext.destination);
-            }
+    try {
+        if (currentMusicAudio) {
+            currentMusicAudio.pause();
+            currentMusicAudio.currentTime = 0;
+            
+            // Remove event listeners to prevent memory leaks
+            currentMusicAudio.onended = null;
+            currentMusicAudio.onerror = null;
         }
-        musicSource = null;
+        
+        currentMusicAudio = null;
         currentMusicId = null;
-
+        
         return true;
     } catch (e) {
         logger.error("[AudioManager] Error stopping music:", e);
-        musicSource = null;
+        currentMusicAudio = null;
         currentMusicId = null;
         return false;
     }
 }
 
 /**
- * Plays background music with reliable stopping of any previous music.
+ * Plays background music using HTML5 audio.
  * @param {string} levelId - the level music to play (e.g., 'level1', 'level2', 'theme')
  * @param {number} volume - Volume level from 0 to 1 (default: 0.3)
- * @returns {Promise<AudioBufferSourceNode|null>} The audio source node or null if playback failed
+ * @returns {Promise<HTMLAudioElement|null>} The audio element or null if playback failed
  */
 export async function playMusic(levelId = 'theme', volume = 0.3) {
-    if (currentMusicId === levelId && musicSource) {
+    // If no user interaction yet, queue this request
+    if (!hasUserInteracted) {
+        logger.info(`[AudioManager] Queueing music ${levelId} until user interaction`);
+        pendingMusicRequest = { levelId, volume };
+        return null;
+    }
+
+    if (currentMusicId === levelId && currentMusicAudio && !currentMusicAudio.paused) {
         logger.info(`[AudioManager] ${levelId} music already playing`);
-        return musicSource;
+        return currentMusicAudio;
     }
 
     try {
+        // Stop any current music
         await stopMusic();
+        
+        // Small delay to ensure clean transition
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        const filePath = levelAudioMap[levelId];
-        if (!filePath) {
-            logger.error(`[AudioManager] No audio file defined for level: ${levelId}`);
+        const audioElement = musicAudioElements[levelId];
+        if (!audioElement) {
+            logger.error(`[AudioManager] No audio element found for level: ${levelId}`);
             return null;
         }
 
-
-        if (audioContext.state !== 'running') {
-            await audioContext.resume();
-        }
-
-
-        const response = await fetch(filePath);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch audio file: ${response.status}`);
-        }
-
-        const audioData = await response.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(audioData);
-
-
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.loop = true;
-
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = volume;
-
-        source.connect(gainNode);
-        gainNode.connect(masterGain);
-
-
-        source.start(0);
-
-
-        musicSource = source;
-        currentMusicId = levelId;
-
-
-        source.onended = () => {
-            if (musicSource === source) {
-                musicSource = null;
+        // Set volume and prepare audio
+        audioElement.volume = volume * masterVolume;
+        audioElement.currentTime = 0;
+        
+        // Set up event handlers
+        audioElement.onended = () => {
+            if (currentMusicAudio === audioElement) {
+                logger.info(`[AudioManager] Music ${levelId} ended naturally`);
+            }
+        };
+        
+        audioElement.onerror = (e) => {
+            logger.error(`[AudioManager] Error playing music ${levelId}:`, e);
+            if (currentMusicAudio === audioElement) {
+                currentMusicAudio = null;
                 currentMusicId = null;
             }
         };
+
+        // Play the audio
+        await audioElement.play();
+        
+        // Update state
+        currentMusicAudio = audioElement;
+        currentMusicId = levelId;
+        
         logger.info(`[AudioManager] Playing ${levelId} music`);
-        return source;
+        return audioElement;
+        
     } catch (error) {
+        // Handle autoplay blocking gracefully
+        if (error.name === 'NotAllowedError' || error.message.includes('not allowed')) {
+            logger.info(`[AudioManager] Music ${levelId} blocked by autoplay policy - will play after user interaction`);
+            pendingMusicRequest = { levelId, volume };
+            return null;
+        }
+        
         logger.error(`[AudioManager] Error playing music for ${levelId}:`, error);
-        musicSource = null;
+        currentMusicAudio = null;
         currentMusicId = null;
         return null;
     }
 }
 
 /**
- * Checks if music is currently playing.
- * @returns {boolean} True if music is playing, false otherwise
- */
-export function isMusicActive() {
-    return currentMusicId !== null && musicSource !== null;
-}
-
-/**
- * Gets the ID of the currently playing music.
- * @returns {string|null} The ID of the current music, or null if no music is playing
- */
-export function getCurrentMusicId() {
-    return currentMusicId;
-}
-
-/**
- * Plays a wave file from the specified path.
+ * Plays a wave file using HTML5 audio.
  * @param {string} filePath - Path to the wave file
  * @param {number} volume - Volume level from 0 to 1 (default: 0.5)
  * @param {boolean} loop - Whether to loop the audio (default: false)
- * @returns {Promise<AudioBufferSourceNode|null>} The audio source node or null if playback failed
+ * @returns {Promise<HTMLAudioElement|null>} The audio element or null if playback failed
  */
 export async function playWaveFile(filePath, volume = 0.5, loop = false) {
-    if (!audioContext || !masterGain) {
-        console.error("[AudioManager] Cannot play wave file: Audio context not initialized");
+    // If no user interaction yet, queue this action (but only for important sounds)
+    if (!hasUserInteracted) {
+        // Only queue certain important sounds, skip others like coin sounds to avoid spam
+        const effectKey = Object.keys(effectAudioMap).find(key => effectAudioMap[key] === filePath);
+        if (effectKey && ['collision', 'gameover', 'buttonclick'].includes(effectKey)) {
+            logger.info(`[AudioManager] Queueing effect ${effectKey} until user interaction`);
+            pendingAudioQueue.push(() => playWaveFile(filePath, volume, loop));
+        }
         return null;
     }
 
     try {
-        const response = await fetch(filePath);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch audio file: ${response.status} ${response.statusText}`);
+        // Find the effect key for this file path
+        const effectKey = Object.keys(effectAudioMap).find(key => effectAudioMap[key] === filePath);
+        
+        let audioElement;
+        
+        if (effectKey && effectAudioPools[effectKey]) {
+            // Use pooled audio for effects
+            audioElement = getAvailableAudio(effectAudioPools[effectKey]);
+        } else {
+            // Create a new audio element for non-pooled sounds
+            audioElement = new Audio(filePath);
+            audioElement.preload = 'auto';
         }
-
-
-        const audioData = await response.arrayBuffer();
-
-
-        const audioBuffer = await audioContext.decodeAudioData(audioData);
-
-
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.loop = loop;
-
-
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = volume;
-
-
-        source.connect(gainNode);
-        gainNode.connect(masterGain);
-
-
-        source.start(0);
-
-
-        return source;
-
+        
+        // Set properties
+        audioElement.volume = volume * masterVolume;
+        audioElement.loop = loop;
+        audioElement.currentTime = 0;
+        
+        // Handle errors
+        audioElement.onerror = (e) => {
+            logger.error("[AudioManager] Error playing wave file:", e);
+        };
+        
+        // Play the audio
+        await audioElement.play();
+        
+        return audioElement;
+        
     } catch (e) {
+        // Handle autoplay blocking gracefully
+        if (e.name === 'NotAllowedError' || e.message.includes('not allowed')) {
+            // Don't log this as an error since it's expected behavior
+            return null;
+        }
+        
         logger.error("[AudioManager] Error playing wave file:", e);
         return null;
     }

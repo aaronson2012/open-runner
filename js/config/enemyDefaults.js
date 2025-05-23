@@ -20,5 +20,8 @@ export const enemyDefaultsConfig = {
     GROUNDING_OFFSET_SNAKE: 0.5,
     GROUNDING_HEIGHT_SNAKE: 0.3,
     GROUNDING_OFFSET_SCORPION: 0.5,
-    GROUNDING_HEIGHT_SCORPION: 0.3
+    GROUNDING_HEIGHT_SCORPION: 0.3,
+    GRAVITY: 9.8,
+    MAX_FALL_SPEED: 30.0,
+    MIN_Y_POSITION: -100 // Arbitrary value, can be adjusted
 };

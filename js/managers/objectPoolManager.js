@@ -230,15 +230,9 @@ export class ObjectPoolManager { // Add named export
 
                     // If the tree is incomplete, create a new one to replace it
                     // This ensures we don't keep broken trees in the system
-                    try {
-                        // Create a new tree to replace the broken one
-                        const newTree = createTreeMesh();
-                        // Don't return the new tree - we're disposing the old one, not replacing it
-                        // Just log that we're creating a new one for future use
-                        logger.info('Created a new tree to replace incomplete one');
-                    } catch (error) {
-                        logger.error('Failed to create replacement tree:', error);
-                    }
+                    // If a tree is incomplete, it will be fully disposed of,
+                    // and a new one will be created when requested by the ChunkContentManager.
+                    logger.warn('Incomplete tree will be fully disposed.');
                 } else {
                     // Only dispose materials and geometries, but keep the structure intact
                     object.traverse((child) => {

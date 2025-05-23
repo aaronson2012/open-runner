@@ -31,6 +31,15 @@ export const gameplayConfig = {
     TREE_COLLISION_BUFFER: 0.2,
     DOUBLER_MULTIPLIER: 2,
     DOUBLER_COLLISION_RADIUS: 1.0,
-    INVISIBILITY_DURATION: 10,
-    INVISIBILITY_FADE_TIME: 1.5,
+    // INVISIBILITY_DURATION: 10, // Made redundant by invisibilityConfig.durationMs. Was 10 seconds.
+    // INVISIBILITY_FADE_TIME: 1.5, // Made redundant by invisibilityConfig.fadeTimeMs. Was 1.5 seconds.
+
+    // Configuration specific to the Invisibility Power-Up
+    invisibilityConfig: {
+        // durationMs: Authoritative duration of the invisibility effect in milliseconds.
+        // This resolves the ambiguity between a general POWERUP_DURATION and a specific INVISIBILITY_DURATION.
+        durationMs: 10000, // Equivalent to 10 seconds
+        // fadeTimeMs: Duration of the fade in/out effect for invisibility in milliseconds.
+        fadeTimeMs: 1500   // Equivalent to 1.5 seconds
+    },
 }

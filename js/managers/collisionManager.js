@@ -40,6 +40,60 @@ export function initCollisionManager(spatialGridInstance, chunkManagerInstance) 
 }
 
 /**
+ * Helper function to handle powerup collection logic.
+ * @param {THREE.Mesh} mesh - The powerup mesh.
+ * @param {object} playerPosition - The player's current position.
+ * @param {Array} nearbyArray - The array of nearby objects for potential removal.
+ * @param {number} indexInNearbyArray - The index of this mesh in nearbyArray.
+ * @returns {boolean} True if a powerup was collected, false otherwise.
+ * @private
+ */
+function _handlePowerupCollection(mesh, playerPosition, nearbyArray, indexInNearbyArray) {
+    if (!mesh || !mesh.userData || !mesh.userData.objectType || mesh.userData.collidable) {
+        return false;
+    }
+
+    const powerupType = mesh.userData.objectType;
+    const modelConfigForPowerup = modelsConfig[powerupType.toUpperCase()];
+
+    if (!modelConfigForPowerup || !modelConfigForPowerup.POWERUP_TYPE) {
+        // Not a recognized powerup type in modelsConfig or missing POWERUP_TYPE definition
+        return false;
+    }
+
+    if (!mesh.position) {
+        logger.warn(`${powerupType} mesh ${mesh.id || 'unknown'} has no position property`);
+        return false;
+    }
+
+    const dx = playerPosition.x - mesh.position.x;
+    const dz = playerPosition.z - mesh.position.z;
+    const distanceSq = dx * dx + dz * dz;
+
+    const collisionRadius = modelConfigForPowerup.COLLISION_RADIUS || 1.0;
+    const collisionThresholdSq = (playerCollisionRadius + collisionRadius) ** 2;
+
+    if (distanceSq < collisionThresholdSq) {
+        if (!mesh.userData.chunkKey || mesh.userData.objectIndex === undefined) {
+            logger.warn(`${powerupType} mesh ${mesh.id || 'unknown'} missing required userData properties`);
+            return false;
+        }
+
+        const { chunkKey, objectIndex } = mesh.userData;
+        const collected = _chunkManager.collectObject(chunkKey, objectIndex);
+
+        if (collected) {
+            const actualPowerupType = modelConfigForPowerup.POWERUP_TYPE;
+            eventBus.emit('powerupActivated', actualPowerupType);
+            nearbyArray.splice(indexInNearbyArray, 1); // Remove from local array for this check
+            logger.debug(`Collected ${actualPowerupType} powerup.`);
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Checks for collisions between the player and nearby objects.
  * @param {Object} player - The player object containing position data.
  * @returns {boolean} True if collision checking was performed, false if skipped.
@@ -99,23 +153,6 @@ export function checkCollisions(player) {
 
         // handle coins
         if (mesh && mesh.userData && mesh.userData.objectType === 'coin' && !mesh.userData.collidable) {
-            // Verify this is actually a coin by checking its geometry
-            if (!mesh.geometry || !mesh.geometry.parameters || !mesh.geometry.parameters.radiusBottom) {
-                // Fix the object type if it's not actually a coin
-                if (mesh.geometry && mesh.geometry.type !== 'CylinderGeometry') {
-                    // Try to determine the correct type based on the mesh
-                    if (mesh.name && mesh.name.includes('magnet')) {
-                        logger.debug(`Correcting object type from 'coin' to 'magnet' for mesh ${mesh.id}`);
-                        mesh.userData.objectType = 'magnet';
-                        continue; // Skip to next iteration so it's processed as a magnet
-                    } else if (mesh.name && mesh.name.includes('doubler')) {
-                        logger.debug(`Correcting object type from 'coin' to 'doubler' for mesh ${mesh.id}`);
-                        mesh.userData.objectType = 'doubler';
-                        continue; // Skip to next iteration so it's processed as a doubler
-                    }
-                }
-            }
-
             // Ensure mesh has a valid position
             if (!mesh.position) {
                 logger.warn(`Coin mesh ${mesh.id || 'unknown'} has no position property`);
@@ -190,141 +227,10 @@ export function checkCollisions(player) {
             }
         }
 
-        // handle powerups
-        if (mesh && mesh.userData && mesh.userData.objectType === 'magnet' && !mesh.userData.collidable) {
-            // Verify this is actually a magnet by checking its structure
-            // Magnets are typically groups with multiple child meshes
-            if (!(mesh instanceof THREE.Group) && !mesh.name?.includes('magnet')) {
-                // If it's a cylinder, it's probably a coin with incorrect type
-                if (mesh.geometry && mesh.geometry.type === 'CylinderGeometry') {
-                    logger.debug(`Correcting object type from 'magnet' to 'coin' for mesh ${mesh.id}`);
-                    mesh.userData.objectType = 'coin';
-                    continue; // Skip to next iteration so it's processed as a coin
-                }
-            }
-
-            // Ensure mesh has a valid position
-            if (!mesh.position) {
-                logger.warn(`Magnet mesh ${mesh.id || 'unknown'} has no position property`);
-                continue;
-            }
-
-            const dx = playerPosition.x - mesh.position.x;
-            const dz = playerPosition.z - mesh.position.z;
-            const distanceSq = dx * dx + dz * dz;
-
-            // Use collision radius from config
-            const magnetCollisionRadius = modelsConfig.MAGNET?.COLLISION_RADIUS || 1.0; // Default if not in config
-            const collisionThresholdSq = (playerCollisionRadius + magnetCollisionRadius) ** 2;
-
-            if (distanceSq < collisionThresholdSq) {
-                // Ensure mesh has the required userData properties
-                if (!mesh.userData.chunkKey || mesh.userData.objectIndex === undefined) {
-                    logger.warn(`Magnet mesh ${mesh.id || 'unknown'} missing required userData properties`);
-                    continue;
-                }
-
-                const { chunkKey, objectIndex } = mesh.userData;
-                const collected = _chunkManager.collectObject(chunkKey, objectIndex);
-
-                if (collected) {
-                    const powerupType = modelsConfig.MAGNET?.POWERUP_TYPE || 'magnet'; // Use constant if defined
-                    eventBus.emit('powerupActivated', powerupType);
-                    nearbyArray.splice(i, 1); // Remove from local array for this check
-                    logger.debug(`Collected magnet powerup of type ${powerupType}`);
-                }
-            }
-        }
-        
-        // handle doubler powerup
-        if (mesh && mesh.userData && mesh.userData.objectType === 'doubler' && !mesh.userData.collidable) {
-            // Verify this is actually a doubler by checking its structure
-            // Doublers are typically groups with multiple child meshes, like magnets
-            if (!(mesh instanceof THREE.Group) && !mesh.name?.includes('doubler')) {
-                // If it's a cylinder, it's probably a coin with incorrect type
-                if (mesh.geometry && mesh.geometry.type === 'CylinderGeometry') {
-                    logger.debug(`Correcting object type from 'doubler' to 'coin' for mesh ${mesh.id}`);
-                    mesh.userData.objectType = 'coin';
-                    continue; // Skip to next iteration so it's processed as a coin
-                }
-            }
-
-            // Ensure mesh has a valid position
-            if (!mesh.position) {
-                logger.warn(`Doubler mesh ${mesh.id || 'unknown'} has no position property`);
-                continue;
-            }
-
-            const dx = playerPosition.x - mesh.position.x;
-            const dz = playerPosition.z - mesh.position.z;
-            const distanceSq = dx * dx + dz * dz;
-
-            // Use collision radius from config, similar to magnet
-            const doublerCollisionRadius = modelsConfig.DOUBLER?.COLLISION_RADIUS || 1.0; // Default if not in config
-            const collisionThresholdSq = (playerCollisionRadius + doublerCollisionRadius) ** 2;
-
-            if (distanceSq < collisionThresholdSq) {
-                // Ensure mesh has the required userData properties
-                if (!mesh.userData.chunkKey || mesh.userData.objectIndex === undefined) {
-                    logger.warn(`Doubler mesh ${mesh.id || 'unknown'} missing required userData properties`);
-                    continue;
-                }
-
-                const { chunkKey, objectIndex } = mesh.userData;
-                const collected = _chunkManager.collectObject(chunkKey, objectIndex);
-
-                if (collected) {
-                    const powerupType = modelsConfig.DOUBLER?.POWERUP_TYPE || 'doubler'; // Use constant if defined
-                    eventBus.emit('powerupActivated', powerupType);
-                    nearbyArray.splice(i, 1); // Remove from local array for this check
-                    logger.debug(`Collected doubler powerup of type ${powerupType}`);
-                }
-            }
-        }
-
-        // handle invisibility powerup
-        if (mesh && mesh.userData && mesh.userData.objectType === 'invisibility' && !mesh.userData.collidable) {
-            // Verify this is actually an invisibility powerup by checking its structure
-            if (!(mesh instanceof THREE.Group) && !mesh.name?.includes('invisibility')) {
-                // If it's a cylinder, it's probably a coin with incorrect type
-                if (mesh.geometry && mesh.geometry.type === 'CylinderGeometry') {
-                    logger.debug(`Correcting object type from 'invisibility' to 'coin' for mesh ${mesh.id}`);
-                    mesh.userData.objectType = 'coin';
-                    continue; // Skip to next iteration so it's processed as a coin
-                }
-            }
-
-            // Ensure mesh has a valid position
-            if (!mesh.position) {
-                logger.warn(`Invisibility mesh ${mesh.id || 'unknown'} has no position property`);
-                continue;
-            }
-
-            const dx = playerPosition.x - mesh.position.x;
-            const dz = playerPosition.z - mesh.position.z;
-            const distanceSq = dx * dx + dz * dz;
-
-            // Use collision radius from config, similar to magnet
-            const invisibilityCollisionRadius = modelsConfig.INVISIBILITY?.COLLISION_RADIUS || 1.0; // Default if not in config
-            const collisionThresholdSq = (playerCollisionRadius + invisibilityCollisionRadius) ** 2;
-
-            if (distanceSq < collisionThresholdSq) {
-                // Ensure mesh has the required userData properties
-                if (!mesh.userData.chunkKey || mesh.userData.objectIndex === undefined) {
-                    logger.warn(`Invisibility mesh ${mesh.id || 'unknown'} missing required userData properties`);
-                    continue;
-                }
-
-                const { chunkKey, objectIndex } = mesh.userData;
-                const collected = _chunkManager.collectObject(chunkKey, objectIndex);
-
-                if (collected) {
-                    const powerupType = modelsConfig.INVISIBILITY?.POWERUP_TYPE || 'invisibility'; // Use constant if defined
-                    eventBus.emit('powerupActivated', powerupType);
-                    nearbyArray.splice(i, 1); // Remove from local array for this check
-                    logger.debug(`Collected invisibility powerup of type ${powerupType}`);
-                }
-            }
+        // handle powerups (magnet, doubler, invisibility)
+        if (_handlePowerupCollection(mesh, playerPosition, nearbyArray, i)) {
+            // If a powerup was collected, it was removed from nearbyArray, so continue.
+            continue;
         }
     }
 

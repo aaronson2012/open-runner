@@ -8,10 +8,10 @@ const logger = createLogger('AtmosphericManager'); // Use logger instance
 
 class AtmosphericManager {
     constructor() {
-        this.atmosphericElements = [];
-        this.targetScene = null; // Scene to add elements to
-        this.player = null; // Reference to player for positioning
-        this.currentLevelId = null; // Track current level
+        this.atmosphericElements = []; // Stores active 3D objects
+        this.targetScene = null;
+        this.player = null;
+        this.currentLevelConfig = null; // Store the whole level config for easy access
         logger.info("AtmosphericManager instantiated");
     }
 
@@ -29,11 +29,11 @@ class AtmosphericManager {
     // --- Management ---
     clearElements() {
         logger.info("Clearing atmospheric elements...");
-        this.atmosphericElements.forEach(element => {
+        this.atmosphericElements.forEach(elementData => {
+            const element = elementData.model; // The 3D object is stored in model property
             if (element && element.parent) {
                 element.parent.remove(element);
             }
-            // Dispose geometry and materials if necessary
             if (element.traverse) {
                 element.traverse((child) => {
                     if (child instanceof THREE.Mesh) {
@@ -50,72 +50,167 @@ class AtmosphericManager {
             }
         });
         this.atmosphericElements = [];
-        this.currentLevelId = null; // Reset level ID when clearing
+        this.currentLevelConfig = null;
         logger.info("Atmospheric elements cleared.");
     }
 
-    addElementsForLevel(levelId, targetScene) {
-        // Use provided targetScene or the stored one
-        const sceneToAdd = targetScene || this.targetScene;
-        if (!sceneToAdd) {
-            logger.error("Cannot add atmospheric elements: Target scene not set or provided.");
+    // Called by LevelManager or Game when a level is loaded
+    setupAtmosphereForLevel(levelConfig, targetScene) {
+        const sceneToUpdate = targetScene || this.targetScene;
+        if (!sceneToUpdate) {
+            logger.error("Cannot setup atmosphere: Target scene not set or provided.");
             return;
         }
-        // Ensure elements are added to the correct scene reference
-        this.targetScene = sceneToAdd;
+        this.targetScene = sceneToUpdate; // Ensure correct scene reference
+        this.currentLevelConfig = levelConfig;
 
-        this.clearElements(); // Clear previous elements before adding new ones
-        this.currentLevelId = levelId;
+        this.clearElements(); // Clear previous elements
 
-        if (levelId === 'level2') {
-            logger.info("Adding atmospheric buzzards for level 2...");
-            const numBuzzards = 4;
-            const circleRadius = 150;
-            const buzzardAltitude = 80;
-            for (let i = 0; i < numBuzzards; i++) {
+        if (!levelConfig || !levelConfig.atmosphericProfile) {
+            logger.warn(`No atmosphericProfile found for level: ${levelConfig ? levelConfig.levelId || 'Unknown Level' : 'Unknown Level'}. Skipping atmospheric setup.`);
+            // Set some defaults or clear scene atmosphere if no profile
+            sceneToUpdate.background = new THREE.Color(0x000000); // Default black
+            sceneToUpdate.fog = null; // Clear fog
+            return;
+        }
+
+        const profile = levelConfig.atmosphericProfile;
+        logger.info(`Setting up atmosphere for level using profile:`, profile);
+
+        // 1. Apply Scene Background
+        if (profile.backgroundColor !== undefined) {
+            sceneToUpdate.background = new THREE.Color(profile.backgroundColor);
+        }
+
+        // 2. Apply Fog
+        if (profile.fog) {
+            sceneToUpdate.fog = new THREE.Fog(
+                new THREE.Color(profile.fog.color),
+                profile.fog.near,
+                profile.fog.far
+            );
+        } else {
+            sceneToUpdate.fog = null; // Remove fog if not defined
+        }
+
+        // 3. Apply Lighting
+        if (profile.lighting) {
+            // Ambient Light
+            if (profile.lighting.ambient) {
+                let ambientLight = sceneToUpdate.getObjectByProperty('isAmbientLight', true);
+                if (!ambientLight) {
+                    ambientLight = new THREE.AmbientLight();
+                    sceneToUpdate.add(ambientLight);
+                    logger.info("Created new AmbientLight.");
+                }
+                ambientLight.color.setHex(profile.lighting.ambient.color);
+                ambientLight.intensity = profile.lighting.ambient.intensity;
+                logger.info("Ambient light updated from profile:", profile.lighting.ambient);
+            }
+
+            // Directional Light
+            if (profile.lighting.directional) {
+                let directionalLight = sceneToUpdate.getObjectByProperty('isDirectionalLight', true);
+                if (!directionalLight) {
+                    directionalLight = new THREE.DirectionalLight();
+                    // Default position if not in profile, though profile should have it
+                    directionalLight.position.set(1, 1, 1);
+                    sceneToUpdate.add(directionalLight);
+                    logger.info("Created new DirectionalLight.");
+                }
+                directionalLight.color.setHex(profile.lighting.directional.color);
+                directionalLight.intensity = profile.lighting.directional.intensity;
+                if (profile.lighting.directional.position) {
+                    directionalLight.position.set(
+                        profile.lighting.directional.position.x,
+                        profile.lighting.directional.position.y,
+                        profile.lighting.directional.position.z
+                    ).normalize(); // Normalizing is good practice for directional lights
+                }
+                logger.info("Directional light updated from profile:", profile.lighting.directional);
+            }
+        } else {
+            // Optional: Remove existing lights if no lighting profile is defined
+            // This depends on whether other systems might be managing lights.
+            // For now, we'll leave existing lights if no profile section.
+            logger.warn("No lighting profile found. Existing scene lights (if any) will remain unchanged.");
+        }
+
+        // 4. Add Atmospheric Elements
+        if (profile.elements && profile.elements.length > 0) {
+            profile.elements.forEach(elementConfig => {
+                this.createAndAddElement(elementConfig);
+            });
+        }
+        logger.info("Atmosphere setup complete.");
+    }
+
+    createAndAddElement(elementConfig) {
+        if (!this.targetScene) {
+            logger.error("Cannot add element: Target scene not set.");
+            return;
+        }
+
+        let elementModel;
+        switch (elementConfig.type) {
+            case 'buzzard':
                 try {
-                    // Use ModelFactory to create the buzzard
-                    const buzzard = ModelFactory.createBuzzardModel(); // Assuming no specific properties needed here
-                    if (buzzard) {
-                        const angleOffset = (Math.PI * 2 / numBuzzards) * i;
-                        // Initial placement relative to origin (will be updated relative to player)
-                        const buzzardX = Math.cos(angleOffset) * circleRadius;
-                        const buzzardZ = Math.sin(angleOffset) * circleRadius;
-                        buzzard.position.set(buzzardX, buzzardAltitude, buzzardZ);
-                        this.targetScene.add(buzzard); // Use the correct scene reference
-                        this.atmosphericElements.push(buzzard);
+                    elementModel = ModelFactory.createBuzzardModel();
+                    if (elementModel) {
+                        // Initial placement (will be updated in the update loop)
+                        // Store config for use in update loop
+                        const initialAngle = Math.random() * Math.PI * 2; // Random start angle
+                        const initialX = Math.cos(initialAngle) * elementConfig.circleRadius;
+                        const initialZ = Math.sin(initialAngle) * elementConfig.circleRadius;
+                        elementModel.position.set(initialX, elementConfig.altitude, initialZ);
+                        
+                        this.targetScene.add(elementModel);
+                        this.atmosphericElements.push({ model: elementModel, config: elementConfig, type: 'buzzard' });
+                        logger.info(`Added ${elementConfig.type} element.`);
                     } else {
-                         logger.warn("Failed to create buzzard model instance.");
+                        logger.warn("Failed to create buzzard model instance for atmospheric element.");
                     }
                 } catch (error) {
-                    logger.error("Error creating buzzard model:", error);
+                    logger.error(`Error creating ${elementConfig.type} model:`, error);
                 }
-            }
-            logger.info(`${this.atmosphericElements.length} buzzards added.`);
+                break;
+            // Add cases for other element types here (e.g., clouds, dust particles)
+            default:
+                logger.warn(`Unknown atmospheric element type: ${elementConfig.type}`);
+                break;
         }
-        // Add conditions for other levels here if needed
     }
+
 
     // --- Update Loop ---
     update(deltaTime, elapsedTime) {
-        if (this.atmosphericElements.length === 0 || this.currentLevelId !== 'level2' || !this.player?.model) {
-            return; // Only update if elements exist, it's level 2, and player exists
+        if (!this.player?.model || this.atmosphericElements.length === 0) {
+            return;
         }
 
-        const circleRadius = 150;
-        const circleSpeed = 0.05;
-        const buzzardAltitude = 80;
         const playerX = this.player.model.position.x;
         const playerZ = this.player.model.position.z;
 
-        this.atmosphericElements.forEach((buzzard, index) => {
-            const angleOffset = (Math.PI * 2 / this.atmosphericElements.length) * index;
-            const currentAngle = elapsedTime * circleSpeed + angleOffset;
-            const buzzardX = playerX + Math.cos(currentAngle) * circleRadius;
-            const buzzardZ = playerZ + Math.sin(currentAngle) * circleRadius;
-            buzzard.position.set(buzzardX, buzzardAltitude, buzzardZ);
-            // Look slightly below the player for a more natural pose
-            buzzard.lookAt(playerX, buzzardAltitude - 10, playerZ);
+        this.atmosphericElements.forEach((elementData, index) => {
+            const model = elementData.model;
+            const config = elementData.config;
+
+            switch (elementData.type) {
+                case 'buzzard':
+                    if (config) {
+                        const angleOffset = (Math.PI * 2 / (config.count || 1)) * index; // Use count from config
+                        const currentAngle = elapsedTime * config.circleSpeed + angleOffset;
+                        
+                        const buzzardX = playerX + Math.cos(currentAngle) * config.circleRadius;
+                        const buzzardZ = playerZ + Math.sin(currentAngle) * config.circleRadius;
+                        model.position.set(buzzardX, config.altitude, buzzardZ);
+
+                        const lookAtY = config.altitude + (config.lookAtOffset ? config.lookAtOffset.y : 0);
+                        model.lookAt(playerX, lookAtY, playerZ);
+                    }
+                    break;
+                // Add update logic for other element types here
+            }
         });
     }
 }

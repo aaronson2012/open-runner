@@ -48,6 +48,7 @@ export class Enemy {
         this.groundCheckCounter = Math.floor(Math.random() * 5);
         this.lastGroundY = initialData.position.y;
         this.currentGroundY = initialData.position.y;
+        this.verticalVelocity = 0; // Initialize vertical velocity
         this.roamingTarget = null;
         this.roamingWaitTimer = 0;
         this.positionSmoothingFactor = enemyDefaultsConfig.POSITION_SMOOTHING_FACTOR;
@@ -90,7 +91,7 @@ export class Enemy {
     update(playerPos, currentPowerup, deltaTime, elapsedTime) {
         if (!this.mesh || !this.chunkManager) return;
 
-        this._updateGrounding();
+        this._updateGrounding(deltaTime); // Pass deltaTime for gravity calculation
         this._updateState(playerPos, currentPowerup, deltaTime);
         const { isMoving, currentSpeed } = this._updateMovement(playerPos, deltaTime);
         this._updateAnimation(elapsedTime, isMoving, currentSpeed);
@@ -98,8 +99,10 @@ export class Enemy {
 
 
 
-    _updateGrounding() {
+    _updateGrounding(deltaTime) {
         const currentPosition = this.mesh.position;
+        const legHeight = this.mesh.userData.legHeight || 0.5; // Define legHeight once
+
         _rayOrigin.set(currentPosition.x, currentPosition.y + enemyDefaultsConfig.GROUND_CHECK_OFFSET, currentPosition.z);
         groundRaycaster.set(_rayOrigin, downVector);
         const nearbyTerrain = this.chunkManager.getTerrainMeshesNear(currentPosition);
@@ -109,10 +112,30 @@ export class Enemy {
             this.lastGroundY = intersects[0].point.y;
             const smoothFactor = enemyDefaultsConfig.GROUND_SMOOTHING_FACTOR;
             this.currentGroundY = this.currentGroundY * (1.0 - smoothFactor) + this.lastGroundY * smoothFactor;
-            const legHeight = this.mesh.userData.legHeight || 0.5;
             this.mesh.position.y = this.currentGroundY + legHeight / 2;
+            this.verticalVelocity = 0; // Reset vertical velocity when grounded
         } else {
-             this.mesh.position.y = this.currentGroundY + (this.mesh.userData.legHeight || 0.5) / 2;
+            // Apply gravity
+            this.verticalVelocity -= enemyDefaultsConfig.GRAVITY * deltaTime;
+            // Clamp to max fall speed
+            this.verticalVelocity = Math.max(this.verticalVelocity, -enemyDefaultsConfig.MAX_FALL_SPEED);
+            // Update enemy position based on fall speed
+            this.mesh.position.y += this.verticalVelocity * deltaTime;
+
+            // Check for falling out of the world
+            if (this.mesh.position.y < enemyDefaultsConfig.MIN_Y_POSITION) {
+                logger.warn(`Enemy ${this.type} has fallen below MIN_Y_POSITION. Clamping position.`);
+                // For now, clamp to MIN_Y_POSITION to prevent falling indefinitely
+                // Future: Consider despawn or other logic here
+                this.mesh.position.y = enemyDefaultsConfig.MIN_Y_POSITION;
+                this.verticalVelocity = 0; // Stop further falling
+            } else if (this.mesh.position.y < this.currentGroundY + legHeight / 2 && this.verticalVelocity < 0) {
+                // This case handles falling slightly below the last known ground due to discrete steps.
+                // If we are now below where we thought ground was, and still falling,
+                // but no new ground was found by the raycast above, we continue falling.
+                // If a more robust "snap to ground if very close" is needed, it would go here,
+                // but the current raycast should handle re-grounding in the next frame if ground appears.
+            }
         }
     }
 
@@ -273,6 +296,7 @@ export class Enemy {
         this.lastPosition.copy(initialData.position);
         this.currentGroundY = initialData.position.y;
         this.lastGroundY = initialData.position.y;
+        this.verticalVelocity = 0; // Reset vertical velocity
         this.roamingTarget = null;
         this.roamingWaitTimer = 0;
         this.groundCheckCounter = Math.floor(Math.random() * 5);

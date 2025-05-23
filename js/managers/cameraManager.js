@@ -31,21 +31,17 @@ class CameraManager {
         this.cameraStartQuaternion = null;
         this.transitionTimeElapsed = 0; // Track time elapsed during transition
         this.transitionDuration = 0.6; // Default, can be overridden
-
+    
         this.titleCameraDrift = null;
-
-
-        this._lastGameplayPosition = null;
-        this._lastGameplayLookAt = null;
-
-
+    
+        // Removed: _lastGameplayPosition, _lastGameplayLookAt
+        // Removed: _smoothingFramesAfterTransition, _frameCountAfterTransition
+        // Removed: _initialSmoothingFactor (was unused)
+    
         this._justCompletedTransition = false;
         this._transitionCompletionTime = 0;
-        this._smoothingFramesAfterTransition = 0;
-        this._frameCountAfterTransition = 0;
-        this._initialSmoothingFactor = 0.05; // Initial smoothing factor after transition
-
-
+    
+    
         this._lastPlayerPosition = null;
         this._firstPositionFrame = true;
 
@@ -118,6 +114,14 @@ class CameraManager {
         return this.isTransitioning;
     }
 
+    resetTransitionState() {
+        logger.info("Resetting camera transition state");
+        this.isTransitioning = false;
+        this.transitionType = null;
+        this.transitionTimeElapsed = 0;
+        this._justCompletedTransition = false;
+        return true;
+    }
 
 
     /**
@@ -151,97 +155,69 @@ class CameraManager {
             return;
         }
 
+        const newPlayerModelPosition = new THREE.Vector3();
+        playerObj.model.getWorldPosition(newPlayerModelPosition);
+
+        let isPlayerMovingHorizontally = false;
+        // Check if _lastPlayerPosition is initialized and not the very first frame to calculate movement
+        if (this._lastPlayerPosition && !this._firstPositionFrame) {
+            const deltaX = newPlayerModelPosition.x - this._lastPlayerPosition.x;
+            const deltaZ = newPlayerModelPosition.z - this._lastPlayerPosition.z;
+            // Use a small threshold for movement detection, squared to avoid sqrt
+            isPlayerMovingHorizontally = (deltaX * deltaX + deltaZ * deltaZ) > (0.01 * 0.01); // 0.0001
+        }
+
+        // Initialize or update _lastPlayerPosition for the next frame
+        if (!this._lastPlayerPosition) {
+            this._lastPlayerPosition = new THREE.Vector3();
+        }
+        this._lastPlayerPosition.copy(newPlayerModelPosition);
+
+        if (this._firstPositionFrame) {
+            this._firstPositionFrame = false; // Mark that we've processed the first frame
+        }
 
         const { position: targetCameraPosition, lookAt: lookAtPosition } = this._calculateGameplayCameraTarget(playerObj.model);
 
-
-        if (!this._lastPlayerPosition) {
-            this._lastPlayerPosition = new THREE.Vector3();
-            playerObj.model.getWorldPosition(this._lastPlayerPosition);
-
-
-            this._firstPositionFrame = true;
-        } else {
-            this._firstPositionFrame = false;
-        }
-
-
-        const currentPlayerPosition = new THREE.Vector3();
-        playerObj.model.getWorldPosition(currentPlayerPosition);
-
-
-        let playerMovement = 0;
-        if (!this._firstPositionFrame) {
-            playerMovement = currentPlayerPosition.distanceTo(this._lastPlayerPosition);
-        }
-
-
-        this._lastPlayerPosition.copy(currentPlayerPosition);
-
-
-        const horizontalMovement = Math.sqrt(
-            Math.pow(currentPlayerPosition.x - this._lastPlayerPosition.x, 2) +
-            Math.pow(currentPlayerPosition.z - this._lastPlayerPosition.z, 2)
-        );
-        const isPlayerMoving = horizontalMovement > 0.01; // Threshold for significant horizontal movement
-
+        let lerpAlpha;
 
         if (this._justCompletedTransition) {
+            const timeSinceTransition = this.clock.getElapsedTime() - this._transitionCompletionTime;
 
-            if (this._frameCountAfterTransition < 5) {
-                this.camera.position.copy(targetCameraPosition);
-                this.camera.lookAt(lookAtPosition);
+            // Ensure cameraConfig.POST_TRANSITION_SMOOTH_DURATION and cameraConfig.POST_TRANSITION_RESPONSIVENESS_FACTOR are defined
+            const postTransitionDuration = cameraConfig.POST_TRANSITION_SMOOTH_DURATION || 0.75; // Default 0.75s
+            const responsivenessFactor = cameraConfig.POST_TRANSITION_RESPONSIVENESS_FACTOR || 0.1; // Default 0.1 (highly responsive)
 
-                this._lastGameplayPosition = targetCameraPosition.clone();
-                this._lastGameplayLookAt = lookAtPosition.clone();
+            if (timeSinceTransition < postTransitionDuration) {
+                const progress = Math.min(timeSinceTransition / postTransitionDuration, 1.0);
+                const easedProgress = this._easeInOutCubic(progress); // 0 to 1
 
-                this._frameCountAfterTransition++;
-                return;
-            }
+                // At start of transition (easedProgress = 0), use a very responsive factor
+                // At end (easedProgress = 1), use the normal factor
+                const responsiveSmoothingTarget = cameraConfig.SMOOTHING_FACTOR * responsivenessFactor;
+                const normalSmoothingTargetBase = isPlayerMovingHorizontally ?
+                    cameraConfig.SMOOTHING_FACTOR * 0.5 :
+                    cameraConfig.SMOOTHING_FACTOR;
+                
+                const currentSmoothingTarget = THREE.MathUtils.lerp(responsiveSmoothingTarget, normalSmoothingTargetBase, easedProgress);
+                lerpAlpha = 1.0 - Math.pow(currentSmoothingTarget, deltaTime);
 
-
-            const progress = Math.min(this._frameCountAfterTransition / this._smoothingFramesAfterTransition, 1.0);
-            const easedProgress = this._easeInOutCubic(progress);
-
-
-            const normalSmoothFactor = 1.0 - Math.pow(cameraConfig.SMOOTHING_FACTOR, deltaTime);
-
-
-            let smoothFactor;
-            if (isPlayerMoving) {
-
-                smoothFactor = Math.max(normalSmoothFactor, 0.3);
             } else {
-
-                smoothFactor = normalSmoothFactor * easedProgress;
-            }
-
-
-            this.camera.position.lerp(targetCameraPosition, smoothFactor);
-            this.camera.lookAt(lookAtPosition);
-
-
-            this._frameCountAfterTransition++;
-
-
-            if (this._frameCountAfterTransition >= this._smoothingFramesAfterTransition) {
-                this._justCompletedTransition = false;
-                this._frameCountAfterTransition = 0;
-                this._lastGameplayPosition = null;
-                this._lastGameplayLookAt = null;
+                this._justCompletedTransition = false; // Transition period over
+                const baseSmoothingTarget = isPlayerMovingHorizontally ?
+                    cameraConfig.SMOOTHING_FACTOR * 0.5 :
+                    cameraConfig.SMOOTHING_FACTOR;
+                lerpAlpha = 1.0 - Math.pow(baseSmoothingTarget, deltaTime);
             }
         } else {
-            let smoothFactor;
-
-            if (isPlayerMoving) {
-                smoothFactor = 1.0 - Math.pow(cameraConfig.SMOOTHING_FACTOR * 0.5, deltaTime);
-            } else {
-                smoothFactor = 1.0 - Math.pow(cameraConfig.SMOOTHING_FACTOR, deltaTime);
-            }
-
-            this.camera.position.lerp(targetCameraPosition, smoothFactor);
-            this.camera.lookAt(lookAtPosition);
+            const baseSmoothingTarget = isPlayerMovingHorizontally ?
+                cameraConfig.SMOOTHING_FACTOR * 0.5 :
+                cameraConfig.SMOOTHING_FACTOR;
+            lerpAlpha = 1.0 - Math.pow(baseSmoothingTarget, deltaTime);
         }
+
+        this.camera.position.lerp(targetCameraPosition, lerpAlpha);
+        this.camera.lookAt(lookAtPosition);
     }
 
 
@@ -360,28 +336,22 @@ class CameraManager {
 
             this.camera.lookAt(lookAtPosition);
 
-
-            this._lastGameplayPosition = targetCameraPosition.clone();
-            this._lastGameplayLookAt = lookAtPosition.clone();
+            // Removed: _lastGameplayPosition and _lastGameplayLookAt assignments
         } else {
             // Camera transition to player complete
 
             this.camera.position.copy(targetCameraPosition);
             this.camera.lookAt(lookAtPosition);
 
-
-            this._lastGameplayPosition = targetCameraPosition.clone();
-            this._lastGameplayLookAt = lookAtPosition.clone();
-
+            // Removed: _lastGameplayPosition and _lastGameplayLookAt assignments
 
             this.isTransitioning = false;
             this.transitionType = null;
 
 
             this._justCompletedTransition = true;
-            this._transitionCompletionTime = Date.now();
-            this._smoothingFramesAfterTransition = 15;
-            this._frameCountAfterTransition = 0;
+            this._transitionCompletionTime = this.clock.getElapsedTime(); // Use clock time
+            // Removed: _smoothingFramesAfterTransition and _frameCountAfterTransition assignments
 
 
             this._lastPlayerPosition = new THREE.Vector3();

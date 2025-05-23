@@ -182,8 +182,17 @@ class Game {
 
         // Event listeners for powerup effects
         eventBus.subscribe('applyPowerupEffect', ({ type, player }) => {
+            logger.debug(`[Game.js] applyPowerupEffect event received. Type: ${type}, Player ID: ${player?.id}`);
             if (type === gameplayConfig.POWERUP_TYPE_MAGNET && player && player.model) {
                 logger.info(`Applying ${type} powerup visual effect to player`);
+                logger.debug(`[Game.js] gameplayConfig.POWERUP_TYPE_MAGNET: ${gameplayConfig.POWERUP_TYPE_MAGNET}`);
+                logger.debug(`[Game.js] gameplayConfig.MAGNET_EFFECT_COLOR: ${gameplayConfig.MAGNET_EFFECT_COLOR?.toString(16)}`);
+
+                // Ensure userData exists
+                if (!player.userData) {
+                    player.userData = {};
+                    logger.debug("Created userData object for player");
+                }
 
                 // Create a new material for the magnet powerup effect
                 const magnetMaterial = new THREE.MeshStandardMaterial({
@@ -192,36 +201,75 @@ class Game {
                     metalness: gameplayConfig.MAGNET_EFFECT_METALNESS,
                     roughness: gameplayConfig.MAGNET_EFFECT_ROUGHNESS
                 });
+                if (!player.model.userData) player.model.userData = {}; // Ensure userData exists
+                player.model.userData.effectMaterial_magnet = magnetMaterial; // Store for disposal on the model's userData
+                logger.debug(`[Game.js] Stored magnetMaterial on player.model.userData.effectMaterial_magnet`);
 
                 // Apply the material to all meshes in the player model
+                let meshFound = false;
                 player.model.traverse(child => {
                     if (child instanceof THREE.Mesh) {
+                        meshFound = true; // Keep this from my commit
+                        // Ensure child userData exists (from HEAD)
+                        if (!child.userData) {
+                            child.userData = {};
+                        }
+                        logger.debug(`[Game.js] Applying magnet material to mesh: ${child.name || child.id}. Original material: ${child.material?.uuid}`); // Keep this from my commit
                         // Store the original material if not already stored
+                        // if (!child.userData) child.userData = {}; // This line is redundant now due to the check above
                         if (!child.userData.originalMaterial) {
                             child.userData.originalMaterial = child.material;
+                            logger.debug(`[Game.js] Stored original material ${child.userData.originalMaterial?.uuid} for mesh ${child.name || child.id}`);
                         }
-                        child.material = magnetMaterial;
+                        // Retrieve from player.model.userData
+                        if (player.model.userData && player.model.userData.effectMaterial_magnet) {
+                            child.material = player.model.userData.effectMaterial_magnet;
+                            logger.debug(`[Game.js] New material ${child.material?.uuid} applied to mesh ${child.name || child.id}`);
+                        } else {
+                            logger.error(`[Game.js] Magnet material missing on player.model.userData when trying to apply to mesh ${child.name || child.id}`);
+                        }
                     }
                 });
+                if (!meshFound) {
+                    logger.warn(`[Game.js] No THREE.Mesh found in player model to apply magnet material.`);
+                }
             } else if (type === gameplayConfig.POWERUP_TYPE_DOUBLER && player && player.model) {
                 logger.info(`Applying ${type} powerup visual effect to player`);
 
-                // Create a new material for the doubler powerup effect
-                const doublerMaterial = new THREE.MeshStandardMaterial({
+                // Ensure userData exists
+                if (!player.userData) {
+                    player.userData = {};
+                    logger.debug("Created userData object for player");
+                }
+
+                // Create a new material for the doubler powerup effect (applied to player model)
+                const doublerPlayerEffectMaterial = new THREE.MeshStandardMaterial({
                     color: gameplayConfig.DOUBLER_EFFECT_COLOR,
                     emissive: gameplayConfig.DOUBLER_EFFECT_EMISSIVE,
                     metalness: gameplayConfig.DOUBLER_EFFECT_METALNESS,
                     roughness: gameplayConfig.DOUBLER_EFFECT_ROUGHNESS
                 });
+                if (!player.model.userData) player.model.userData = {}; // Ensure userData exists
+                player.model.userData.effectMaterial_doubler_player = doublerPlayerEffectMaterial; // Store for disposal
 
                 // Apply the material to all meshes in the player model
                 player.model.traverse(child => {
                     if (child instanceof THREE.Mesh) {
+                        // Ensure child userData exists
+                        if (!child.userData) {
+                            child.userData = {};
+                        }
                         // Store the original material if not already stored
+                        if (!child.userData) child.userData = {}; // Ensure child's own userData exists
                         if (!child.userData.originalMaterial) {
                             child.userData.originalMaterial = child.material;
                         }
-                        child.material = doublerMaterial;
+                        // Retrieve from player.model.userData
+                        if (player.model.userData && player.model.userData.effectMaterial_doubler_player) {
+                            child.material = player.model.userData.effectMaterial_doubler_player;
+                        } else {
+                            logger.error(`[Game.js] Doubler material missing on player.model.userData when trying to apply to mesh ${child.name || child.id}`);
+                        }
                     }
                 });
                 
@@ -276,7 +324,13 @@ class Game {
                 }
             } else if (type === gameplayConfig.POWERUP_TYPE_INVISIBILITY && player && player.model) {
                 logger.info(`Applying ${type} powerup visual effect to player`);
-                
+
+                // Ensure userData exists
+                if (!player.userData) {
+                    player.userData = {};
+                    logger.debug("Created userData object for player");
+                }
+
                 // Create a new material for the invisibility powerup effect
                 const invisibilityMaterial = new THREE.MeshStandardMaterial({
                     color: gameplayConfig.INVISIBILITY_EFFECT_COLOR,
@@ -286,15 +340,28 @@ class Game {
                     transparent: true,
                     opacity: gameplayConfig.INVISIBILITY_EFFECT_OPACITY
                 });
+                // Use player.model.userData for consistency (my commit's logic)
+                if (!player.model.userData) player.model.userData = {};
+                player.model.userData.effectMaterial_invisibility = invisibilityMaterial;
                 
                 // Apply the material to all meshes in the player model
                 player.model.traverse(child => {
                     if (child instanceof THREE.Mesh) {
+                        // Ensure child userData exists
+                        if (!child.userData) {
+                            child.userData = {};
+                        }
                         // Store the original material if not already stored
+                        if (!child.userData) child.userData = {}; // Ensure child's own userData exists
                         if (!child.userData.originalMaterial) {
                             child.userData.originalMaterial = child.material;
                         }
-                        child.material = invisibilityMaterial;
+                        // Retrieve from player.model.userData
+                        if (player.model.userData && player.model.userData.effectMaterial_invisibility) {
+                            child.material = player.model.userData.effectMaterial_invisibility;
+                        } else {
+                            logger.error(`[Game.js] Invisibility material missing on player.model.userData when trying to apply to mesh ${child.name || child.id}`);
+                        }
                     }
                 });
             }
@@ -306,23 +373,40 @@ class Game {
 
                 // Restore original materials
                 player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
+                    if (child instanceof THREE.Mesh && child.userData && child.userData.originalMaterial) {
                         child.material = child.userData.originalMaterial;
                         // Clear the stored material reference
                         delete child.userData.originalMaterial;
                     }
                 });
+
+                // Dispose of the effect material
+                // Use player.model.userData for consistency (my commit's logic)
+                if (player.model.userData && player.model.userData.effectMaterial_magnet) {
+                    logger.debug("Disposing magnet effect material from player model.");
+                    player.model.userData.effectMaterial_magnet.dispose();
+                    delete player.model.userData.effectMaterial_magnet;
+                }
             } else if (type === gameplayConfig.POWERUP_TYPE_DOUBLER && player && player.model) {
                 logger.info(`Removing ${type} powerup visual effect from player`);
 
-                // Restore original materials
+                // Restore original materials on the player model
                 player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
+                    // Code is identical, keep one version
+                    if (child instanceof THREE.Mesh && child.userData && child.userData.originalMaterial) {
                         child.material = child.userData.originalMaterial;
                         // Clear the stored material reference
                         delete child.userData.originalMaterial;
                     }
                 });
+
+                // Dispose of the player effect material for doubler
+                // Use player.model.userData for consistency (my commit's logic)
+                if (player.model.userData && player.model.userData.effectMaterial_doubler_player) {
+                    logger.debug("Disposing doubler player effect material.");
+                    player.model.userData.effectMaterial_doubler_player.dispose();
+                    delete player.model.userData.effectMaterial_doubler_player;
+                }
                 
                 // Remove the doubler indicator
                 if (player.doublerIndicator) {
@@ -346,15 +430,23 @@ class Game {
                 }
             } else if (type === gameplayConfig.POWERUP_TYPE_INVISIBILITY && player && player.model) {
                 logger.info(`Removing ${type} powerup visual effect from player`);
-                
+
                 // Restore original materials
                 player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
+                    if (child instanceof THREE.Mesh && child.userData && child.userData.originalMaterial) {
                         child.material = child.userData.originalMaterial;
                         // Clear the stored material reference
                         delete child.userData.originalMaterial;
                     }
                 });
+
+                // Dispose of the effect material
+                // Use player.model.userData for consistency (my commit's logic)
+                if (player.model.userData && player.model.userData.effectMaterial_invisibility) {
+                    logger.debug("Disposing invisibility effect material from player.");
+                    player.model.userData.effectMaterial_invisibility.dispose();
+                    delete player.model.userData.effectMaterial_invisibility;
+                }
                 
                 // Remove the invisibility indicator
                 if (player.invisibilityIndicator) {
@@ -485,36 +577,194 @@ class Game {
     cleanup() {
         logger.info("Cleaning up game resources and event listeners");
 
-        // Remove global event listeners
-        if (this.resizeHandler) {
-            window.removeEventListener('resize', this.resizeHandler);
-        }
-
-        if (this.fpsToggleHandler) {
-            document.removeEventListener('keydown', this.fpsToggleHandler);
-        }
-
-        if (this.boundHandleGlobalKeys) {
-            document.removeEventListener('keydown', this.boundHandleGlobalKeys);
-        }
-
-        // Cancel animation frame if needed
+        // Cancel animation frame first to stop game loop
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
+            logger.debug("Animation frame cancelled.");
         }
 
-        // Clean up PlayerManager
+        // Remove global event listeners
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+            logger.debug("Resize handler removed.");
+        }
+        if (this.fpsToggleHandler) {
+            document.removeEventListener('keydown', this.fpsToggleHandler);
+            this.fpsToggleHandler = null;
+            logger.debug("FPS toggle handler removed.");
+        }
+        if (this.boundHandleGlobalKeys) {
+            document.removeEventListener('keydown', this.boundHandleGlobalKeys);
+            this.boundHandleGlobalKeys = null; // No need to unbind, just nullify
+            logger.debug("Global key handler removed.");
+        }
+        
+        // Cleanup UI manager - remove button listeners
+        if (this.uiManager && typeof this.uiManager.cleanup === 'function') {
+            this.uiManager.cleanup(); // Assuming UIManager will have a cleanup for its listeners
+            logger.debug("UIManager cleanup called.");
+        } else if (this.uiManager) {
+            // Fallback: Manually attempt to remove known listeners if no generic cleanup
+            // This is less ideal as UIManager should manage its own event listeners.
+            // For now, we assume UIManager.cleanup() will be implemented or handles this.
+            logger.warn("UIManager does not have a cleanup method. Button listeners might persist if not handled internally.");
+        }
+
+
+        // Ensure any active powerup effects on player are removed and disposed
         if (this.playerManager) {
+            // This should trigger 'removePowerupEffect' for any active powerups,
+            // which now handles material disposal for player visual effects.
+            this.playerManager.resetPowerups();
+            logger.debug("PlayerManager powerups reset.");
+        }
+        
+        // Cleanup managers
+        if (this.playerManager && typeof this.playerManager.cleanup === 'function') {
             this.playerManager.cleanup();
+            logger.debug("PlayerManager cleanup called.");
+        }
+        if (this.assetManager && typeof this.assetManager.disposeLevelAssets === 'function') {
+            // disposeLevelAssets clears and disposes assets for the *current* level.
+            // This is usually sufficient as assets are level-specific.
+            this.assetManager.disposeLevelAssets();
+            logger.debug("AssetManager disposeLevelAssets called.");
+        }
+        if (this.audioManager && typeof this.audioManager.cleanup === 'function') {
+            this.audioManager.cleanup(); // Assumes AudioManager has a cleanup method
+            logger.debug("AudioManager cleanup called.");
+        } else if (this.audioManager && typeof this.audioManager.stopAllSounds === 'function') {
+            this.audioManager.stopAllSounds(); // Fallback
+            logger.debug("AudioManager stopAllSounds called.");
+        }
+        if (this.chunkManager && typeof this.chunkManager.cleanup === 'function') {
+            this.chunkManager.cleanup();
+            logger.debug("ChunkManager cleanup called.");
+        } else if (this.chunkManager && typeof this.chunkManager.clearAllChunks === 'function') {
+            this.chunkManager.clearAllChunks(); // Fallback
+             logger.debug("ChunkManager clearAllChunks called.");
+        }
+        if (this.enemyManager && typeof this.enemyManager.cleanup === 'function') {
+            this.enemyManager.cleanup();
+            logger.debug("EnemyManager cleanup called.");
+        } else if (this.enemyManager && typeof this.enemyManager.removeAllEnemies === 'function') {
+            this.enemyManager.removeAllEnemies(); // Fallback
+            logger.debug("EnemyManager removeAllEnemies called.");
+        }
+        if (this.particleManager && typeof this.particleManager.cleanup === 'function') {
+            this.particleManager.cleanup();
+            logger.debug("ParticleManager cleanup called.");
+        }
+        if (this.atmosphericManager && typeof this.atmosphericManager.cleanup === 'function') {
+            this.atmosphericManager.cleanup();
+             logger.debug("AtmosphericManager cleanup called.");
+        } else if (this.atmosphericManager && typeof this.atmosphericManager.clearElements === 'function') {
+            this.atmosphericManager.clearElements(); // Fallback
+            logger.debug("AtmosphericManager clearElements called.");
+        }
+        if (this.levelManager && typeof this.levelManager.cleanup === 'function') {
+            this.levelManager.cleanup(); // Assumes LevelManager might have general cleanup
+            logger.debug("LevelManager cleanup called.");
+        }
+        if (this.collisionChecker && typeof this.collisionChecker.cleanup === 'function') {
+            this.collisionChecker.cleanup(); // If collision manager needs explicit cleanup
+            logger.debug("CollisionChecker cleanup called.");
+        }
+        if (this.spatialGrid && typeof this.spatialGrid.clear === 'function') {
+            this.spatialGrid.clear(); // SpatialGrid clear is important
+            logger.debug("SpatialGrid cleared.");
+        }
+         if (this.sceneTransitionManager && typeof this.sceneTransitionManager.cleanup === 'function') {
+            this.sceneTransitionManager.cleanup();
+            logger.debug("SceneTransitionManager cleanup called.");
+        }
+        if (this.cameraManager && typeof this.cameraManager.cleanup === 'function') {
+            this.cameraManager.cleanup();
+            logger.debug("CameraManager cleanup called.");
         }
 
-        // Dispose of Three.js resources
+
+        // Dispose of Three.js renderer last, after scenes are potentially cleared by managers
         if (this.renderer) {
             this.renderer.dispose();
+            logger.debug("Renderer disposed.");
+            this.renderer = null;
         }
+        
+        // Dispose scenes if they are not null
+        // Note: Managers should ideally handle removing their objects from scenes they manage.
+        // This is a fallback for any direct additions to these scenes by Game.js itself.
+        const disposeSceneContents = (sceneToDispose) => {
+            if (sceneToDispose) {
+                while(sceneToDispose.children.length > 0){
+                    const child = sceneToDispose.children[0];
+                    sceneToDispose.remove(child);
+                    // Dispose geometry and material if mesh
+                    if (child instanceof THREE.Mesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(m => m.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
+                    }
+                    // Recursively dispose children of groups/objects
+                    if (typeof child.traverse === 'function') {
+                        child.traverse(obj => {
+                            if (obj instanceof THREE.Mesh) {
+                                if (obj.geometry) obj.geometry.dispose();
+                                if (obj.material) {
+                                     if (Array.isArray(obj.material)) {
+                                        obj.material.forEach(m => m.dispose());
+                                    } else {
+                                        obj.material.dispose();
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+                if (sceneToDispose.fog) sceneToDispose.fog = null;
+                if (sceneToDispose.background) sceneToDispose.background = null;
+                // sceneToDispose.dispose(); // Scene itself doesn't have a dispose method like geometry/material
+                logger.debug(`Contents of scene ${sceneToDispose.name || sceneToDispose.uuid} cleared.`);
+            }
+        };
 
-        logger.info("Game cleanup completed");
+        disposeSceneContents(this.gameplayScene);
+        disposeSceneContents(this.scene); // this.scene might be the same as gameplayScene or the initial title scene
+
+        // Nullify references to help GC
+        this.scene = null;
+        this.gameplayScene = null;
+        this.activeScene = null;
+        this.camera = null;
+        // this.renderer is already nulled
+        this.fpsCounter = null; // Assuming it's a DOM element, UIManager should handle its removal
+        this.assetManager = null;
+        this.audioManager = null;
+        this.cameraManager = null;
+        this.sceneTransitionManager = null;
+        this.chunkManager = null;
+        this.collisionChecker = null;
+        this.enemyManager = null;
+        this.gameStateManager = null; // Careful if this is a global singleton
+        this.levelManager = null;
+        this.particleManager = null;
+        this.playerController = null;
+        this.spatialGrid = null;
+        this.uiManager = null;
+        this.atmosphericManager = null;
+        this.player = null; // Player object itself might hold references
+        this.currentLevelConfig = null;
+        this.playerManager = null;
+        this.eventBus = null; // Careful if this is a global singleton
+
+        logger.info("Game cleanup completed. Most resources disposed and references nullified.");
     }
 
     // --- Game Flow Methods (Called by Event Handlers via Callbacks) ---
@@ -532,7 +782,9 @@ class Game {
             logger.info(`Stopping current music before starting level: ${levelId}`);
             this.audioManager.stopMusic();
 
-            // Add a short delay to ensure audio operations complete
+            // Add a short delay to allow the audio system to process the stop command.
+            // This can be helpful if the stop operation itself is asynchronous internally
+            // or to prevent race conditions with starting new audio immediately.
             await new Promise(resolve => setTimeout(resolve, 100));
         } else {
             logger.warn("Audio manager not available, cannot stop music");
@@ -556,9 +808,9 @@ class Game {
         if (!this.gameplayScene) {
              const gameplaySceneComponents = initScene(this.canvas, this.currentLevelConfig);
              this.gameplayScene = gameplaySceneComponents.scene;
-        } else {
-             this._updateSceneAppearance(this.currentLevelConfig, this.gameplayScene);
         }
+        // Removed: this._updateSceneAppearance(this.currentLevelConfig, this.gameplayScene);
+        // Atmospheric setup including scene appearance is now handled in _loadLevel by atmosphericManager.setupAtmosphereForLevel
 
         // Position player on terrain before starting camera transition
         await this._positionPlayerOnTerrain();
@@ -582,10 +834,15 @@ class Game {
         this.activeScene = this.sceneTransitionManager.getActiveScene();
 
         // Set intermediate state before playing music
-        // This ensures any state transition handlers finish first
+        // This ensures any state transition handlers (e.g., UI updates reacting to TRANSITIONING_TO_GAMEPLAY)
+        // have a chance to execute before proceeding with operations that depend on that state,
+        // like starting level music or enabling player controls, which might happen in a
+        // subsequent 'transitionComplete' event or at the start of the 'PLAYING' state.
         this.gameStateManager.setGameState(GameStates.TRANSITIONING_TO_GAMEPLAY);
 
-        // Wait a small amount of time for state change events to be processed
+        // Wait a brief moment to allow the event loop to process any synchronous event handlers
+        // that might have been triggered by the state change above. This helps ensure that
+        // subsequent operations in this async function occur after those handlers have run.
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 
@@ -642,8 +899,12 @@ class Game {
 
             // Initialize Assets, Scene, Player, Chunks
             await this.assetManager.initLevelAssets(this.currentLevelConfig);
-            this.atmosphericManager.addElementsForLevel(levelId, this.gameplayScene);
-            this._updateSceneAppearance(this.currentLevelConfig, this.gameplayScene);
+            // Setup all atmospheric effects, including background, fog, lighting, and elements
+            if (this.currentLevelConfig && this.gameplayScene) {
+                this.atmosphericManager.setupAtmosphereForLevel(this.currentLevelConfig, this.gameplayScene);
+            } else {
+                logger.error("Cannot setup atmosphere in _loadLevel: Missing currentLevelConfig or gameplayScene.");
+            }
             this.chunkManager.setLevelConfig(this.currentLevelConfig);
             if (this.player.model) {
                 if (playerCurrentParent && playerCurrentParent !== this.gameplayScene) {
@@ -696,33 +957,6 @@ class Game {
         }
     }
 
-    /**
-     * Updates the visual appearance (background, fog, lighting) of a given scene based on level config.
-     * @param {object} levelConfig - The configuration object for the level.
-     * @param {THREE.Scene} sceneToUpdate - The scene object to apply changes to.
-     * @private
-     */
-     _updateSceneAppearance(levelConfig, sceneToUpdate) {
-         if (sceneToUpdate && levelConfig) {
-             sceneToUpdate.background = new THREE.Color(levelConfig.SCENE_BACKGROUND_COLOR);
-             sceneToUpdate.fog = new THREE.Fog(levelConfig.SCENE_FOG_COLOR, levelConfig.SCENE_FOG_NEAR, levelConfig.SCENE_FOG_FAR);
-             const ambient = sceneToUpdate.getObjectByProperty('isAmbientLight', true);
-             if (ambient) {
-                 ambient.color.setHex(levelConfig.AMBIENT_LIGHT_COLOR);
-                 ambient.intensity = levelConfig.AMBIENT_LIGHT_INTENSITY;
-             }
-             const directional = sceneToUpdate.getObjectByProperty('isDirectionalLight', true);
-             if (directional) {
-                 directional.color.setHex(levelConfig.DIRECTIONAL_LIGHT_COLOR);
-                 directional.intensity = levelConfig.DIRECTIONAL_LIGHT_INTENSITY;
-                 directional.position.set(
-                      levelConfig.DIRECTIONAL_LIGHT_POS_X,
-                      levelConfig.DIRECTIONAL_LIGHT_POS_Y,
-                      levelConfig.DIRECTIONAL_LIGHT_POS_Z
-                 ).normalize();
-             }
-         }
-     }
 
 
      // --- Input Handling ---

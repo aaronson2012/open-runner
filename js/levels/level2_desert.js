@@ -6,20 +6,42 @@ export const level2Config = {
     NOISE_FREQUENCY: 0.015, // Slightly different frequency
     NOISE_AMPLITUDE: 4,   // Lower amplitude for flatter desert
 
-    // --- Scene ---
-    SCENE_BACKGROUND_COLOR: 0xF0E68C, // Khaki/Sandy background
-    SCENE_FOG_COLOR: 0xF0E68C, // Match background
-    SCENE_FOG_NEAR: 50,
-    SCENE_FOG_FAR: 800, // Maybe slightly less fog distance
+    // --- Scene & Atmosphere ---
+    atmosphericProfile: {
+        backgroundColor: 0xF0E68C, // Khaki/Sandy background
+        fog: {
+            color: 0xF0E68C, // Match background
+            near: 50,
+            far: 800, // Maybe slightly less fog distance
+        },
+        lighting: {
+            ambient: {
+                color: 0xffffff,
+                intensity: 0.7, // Slightly brighter ambient?
+            },
+            directional: {
+                color: 0xffffff,
+                intensity: 0.9, // Brighter sun?
+                position: { x: 150, y: 150, z: 100 },
+            },
+        },
+        elements: [
+            {
+                type: 'buzzard',
+                count: 4,
+                altitude: 80,
+                circleRadius: 150,
+                circleSpeed: 0.05, // This was in the update logic, good to have it configurable
+                lookAtOffset: { y: -10 } // For the lookAt adjustment
+            }
+        ]
+    },
 
-    // --- Lighting ---
-    AMBIENT_LIGHT_COLOR: 0xffffff,
-    AMBIENT_LIGHT_INTENSITY: 0.7, // Slightly brighter ambient?
-    DIRECTIONAL_LIGHT_COLOR: 0xffffff,
-    DIRECTIONAL_LIGHT_INTENSITY: 0.9, // Brighter sun?
-    DIRECTIONAL_LIGHT_POS_X: 150,
-    DIRECTIONAL_LIGHT_POS_Y: 150,
-    DIRECTIONAL_LIGHT_POS_Z: 100,
+    // --- Coin Visuals ---
+    COIN_VISUALS: {
+        spinSpeed: 2.0, // Example spin speed, adjust as needed
+        // Add other coin visual properties here if any in the future
+    },
 
     // --- Enemies ---
     ENEMY_DEFAULT_SPEED: 5.0, // Keep defaults for now
@@ -253,7 +275,7 @@ export const level2Config = {
             density: 0.00045, // Further increased density for more tumbleweeds
             minDistance: 30.0, // Increased to spawn further from path
             verticalOffset: 1.5, // Start higher above ground to prevent sinking
-            scaleRange: [0.8, 1.8], // Increased max scale for more variety
+            scaleRange: [0.8, 1.2], // Match tumbleweedConfig
             randomRotationY: true,
             collidable: true, // Will be handled by physics/collision
             scoreValue: 0,
@@ -262,31 +284,5 @@ export const level2Config = {
             spawnOffPath: true, // Flag to indicate spawning to sides of player path
             spawnOffsetRange: [60, 100], // Significantly increased range to spawn further from path
         },
-    ],
-
-    // --- Coins (Legacy Visuals - Keep if needed) ---
-    COIN_VISUALS: {
-        radius: 0.75,
-        height: 0.2,
-        color: 0xFFFF00, // Yellow
-        spinSpeed: 1.0, // Radians per second
-    },
-
-    // --- Magnet Powerup Visuals ---
-    MAGNET_VISUALS: {
-        size: 0.8,
-        color: 0xF60000, // Red
-    },
-
-    // --- Doubler ---
-    DOUBLER_VISUALS: {
-        size: 0.5,
-        color: 0x0088FF, // Blue color
-    },
-
-    // --- Invisibility ---
-    INVISIBILITY_VISUALS: {
-        size: 1.0,
-        color: 0x7C00FF, // Purple color
-    },
+    ]
 };

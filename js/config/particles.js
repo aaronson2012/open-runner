@@ -1,6 +1,15 @@
-import performanceManager from '../utils/performanceManager.js';
+import { getConfig } from './config.js'; // Import the getConfig helper
+import configManager from '../utils/configManager.js'; // Import configManager
+
+const DEFAULT_PARTICLE_DENSITY = 0.5;
+
 export const particleConfig = {
-    PARTICLE_DENSITY: performanceManager.getSettings().particleDensity,
+    get PARTICLE_DENSITY() {
+        if (!configManager.isInitialized()) {
+            return DEFAULT_PARTICLE_DENSITY;
+        }
+        return getConfig('particles.PARTICLE_DENSITY', DEFAULT_PARTICLE_DENSITY);
+    },
     BASE_MAX_PARTICLES: 500,
     BASE_PARTICLE_LIFETIME: 0.8,
     BASE_PARTICLES_PER_SECOND: 150,

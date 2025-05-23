@@ -6,6 +6,7 @@ import { worldConfig } from '../config/world.js'; // Import specific config obje
 import { createLogger } from '../utils/logger.js'; // Import logger
 import { performanceManager } from '../config/config.js'; // For performance settings
 import performanceUtils from '../utils/performanceUtils.js'; // For frustum culling
+import { SpatialGrid } from '../physics/spatialGrid.js'; // For optimized object placement
 
 const logger = createLogger('ObjectGenerator'); // Instantiate logger
 import * as AssetManager from '../managers/assetManager.js'; // Updated path
@@ -25,6 +26,7 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
     const chunkSeed = `${worldConfig.SEED}_objects_chunk_${chunkX}_${chunkZ}`;
     const rng = prng_alea(chunkSeed);
     const chunkObjectsData = [];
+    const spatialGrid = new SpatialGrid(worldConfig.CHUNK_SIZE / 10); // Adjusted divisor for potentially better coverage with 3x3 query
     const chunkOffsetX = chunkX * worldConfig.CHUNK_SIZE;
     const chunkOffsetZ = chunkZ * worldConfig.CHUNK_SIZE;
     const chunkArea = worldConfig.CHUNK_SIZE * worldConfig.CHUNK_SIZE;
@@ -72,7 +74,8 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
                 }
 
                 let tooClose = false;
-                for (const existingObject of chunkObjectsData) {
+                const nearbyObjects = spatialGrid.queryNearby({ x: worldX, z: worldZ });
+                for (const existingObject of nearbyObjects) {
                     const dx = worldX - existingObject.position.x;
                     const dz = worldZ - existingObject.position.z;
                     const requiredDistSq = Math.max(minDistanceSq, existingObject.minDistance * existingObject.minDistance);
@@ -108,6 +111,7 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
                 }
 
                 chunkObjectsData.push(objectData);
+                spatialGrid.add(objectData); // Add to spatial grid after successful placement
                 placed = true;
                 placedCount++;
                 break;
@@ -141,7 +145,8 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
             const worldZ = relativeZ + chunkOffsetZ;
 
             let tooClose = false;
-            for (const existingObject of chunkObjectsData) {
+            const nearbyEntities = spatialGrid.queryNearby({ x: worldX, z: worldZ });
+            for (const existingObject of nearbyEntities) {
                 const dx = worldX - existingObject.position.x;
                 const dz = worldZ - existingObject.position.z;
                 const requiredDistSq = Math.max(
@@ -173,11 +178,13 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
             const objectScale = new THREE.Vector3(1, 1, 1);
             const objectRotationY = rng() * Math.PI * 2;
 
-            chunkObjectsData.push({
+            const enemyObjectData = {
                 position: objectPos, type: chosenType, scale: objectScale, rotationY: objectRotationY,
                 collected: false, collidable: true, scoreValue: 0,
                 minDistance: properties.minDistance, mesh: null, enemyInstance: null
-            });
+            };
+            chunkObjectsData.push(enemyObjectData);
+            spatialGrid.add(enemyObjectData); // Add to spatial grid after successful placement
             placed = true;
             enemiesPlaced++;
             break;

@@ -38,7 +38,7 @@ export function updateGameplay(dependencies, deltaTime, elapsedTime) {
     }
 
     if (player.model) {
-        playerController.updatePlayer(player, deltaTime, playerAnimationTime, chunkManager, null);
+        playerController.updatePlayer(player, deltaTime, playerAnimationTime, chunkManager);
     } else {
         logger.warn("Cannot update player: player model is missing");
     }
