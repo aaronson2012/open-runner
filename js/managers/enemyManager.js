@@ -202,14 +202,45 @@ export class EnemyManager {
      */
     removeAllEnemies() {
         logger.info(`[EnemyManager] Removing all ${this.activeEnemies.size} enemies...`);
-        const enemiesToRemove = [...this.activeEnemies.values()];
-        for (const enemyInstance of enemiesToRemove) {
-            this.removeEnemy(enemyInstance);
+
+        try {
+            const enemiesToRemove = [...this.activeEnemies.values()];
+            for (const enemyInstance of enemiesToRemove) {
+                try {
+                    this.removeEnemy(enemyInstance);
+                } catch (error) {
+                    logger.error(`[EnemyManager] Error removing enemy:`, error);
+                }
+            }
+
+            // Force clear if any enemies remain
+            if (this.activeEnemies.size > 0) {
+                 logger.warn(`[EnemyManager] activeEnemies map not empty after removeAllEnemies. Size: ${this.activeEnemies.size}`);
+                 this.activeEnemies.clear();
+            }
+
+            logger.info("[EnemyManager] All enemies removed.");
+        } catch (error) {
+            logger.error("[EnemyManager] Error in removeAllEnemies:", error);
+            // Force clear as fallback
+            this.activeEnemies.clear();
         }
-        if (this.activeEnemies.size > 0) {
-             logger.warn(`[EnemyManager] activeEnemies map not empty after removeAllEnemies. Size: ${this.activeEnemies.size}`);
-             this.activeEnemies.clear();
+    }
+
+    /**
+     * Disposes of enemy manager resources
+     */
+    dispose() {
+        logger.info("[EnemyManager] Disposing resources");
+
+        try {
+            this.removeAllEnemies();
+            this.scene = null;
+            this.spatialGrid = null;
+
+            logger.info("[EnemyManager] Resources disposed");
+        } catch (error) {
+            logger.error("[EnemyManager] Error disposing resources:", error);
         }
-        logger.info("[EnemyManager] All enemies removed.");
     }
 }

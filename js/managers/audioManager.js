@@ -123,15 +123,28 @@ export function initAudio() {
 export async function stopMusic() {
     logger.info("[AudioManager] Stopping music");
     try {
-    
         if (musicSource) {
-            if (masterGain) {
-                masterGain.disconnect();
-                masterGain = audioContext.createGain();
-                masterGain.gain.setValueAtTime(audioConfig.INITIAL_MASTER_GAIN, audioContext.currentTime);
-                masterGain.connect(audioContext.destination);
+            // Stop the audio source
+            try {
+                musicSource.stop();
+            } catch (stopError) {
+                // Source might already be stopped, ignore error
+                logger.debug("[AudioManager] Music source already stopped or invalid");
+            }
+
+            // Disconnect and recreate master gain to ensure clean state
+            if (masterGain && audioContext) {
+                try {
+                    masterGain.disconnect();
+                    masterGain = audioContext.createGain();
+                    masterGain.gain.setValueAtTime(audioConfig.INITIAL_MASTER_GAIN, audioContext.currentTime);
+                    masterGain.connect(audioContext.destination);
+                } catch (gainError) {
+                    logger.error("[AudioManager] Error recreating master gain:", gainError);
+                }
             }
         }
+
         musicSource = null;
         currentMusicId = null;
 
@@ -157,6 +170,12 @@ export async function playMusic(levelId = 'theme', volume = 0.3) {
     }
 
     try {
+        // Ensure audio context is available
+        if (!audioContext || !masterGain) {
+            logger.error("[AudioManager] Audio context not initialized");
+            return null;
+        }
+
         await stopMusic();
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -166,47 +185,58 @@ export async function playMusic(levelId = 'theme', volume = 0.3) {
             return null;
         }
 
-
+        // Resume audio context if needed
         if (audioContext.state !== 'running') {
             await audioContext.resume();
         }
 
+        // Fetch and decode audio with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(filePath);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch audio file: ${response.status}`);
-        }
+        try {
+            const response = await fetch(filePath, { signal: controller.signal });
+            clearTimeout(timeoutId);
 
-        const audioData = await response.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(audioData);
-
-
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.loop = true;
-
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = volume;
-
-        source.connect(gainNode);
-        gainNode.connect(masterGain);
-
-
-        source.start(0);
-
-
-        musicSource = source;
-        currentMusicId = levelId;
-
-
-        source.onended = () => {
-            if (musicSource === source) {
-                musicSource = null;
-                currentMusicId = null;
+            if (!response.ok) {
+                throw new Error(`Failed to fetch audio file: ${response.status} ${response.statusText}`);
             }
-        };
-        logger.info(`[AudioManager] Playing ${levelId} music`);
-        return source;
+
+            const audioData = await response.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(audioData);
+
+            // Create and configure audio source
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.loop = true;
+
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = Math.max(0, Math.min(1, volume)); // Clamp volume
+
+            source.connect(gainNode);
+            gainNode.connect(masterGain);
+
+            // Start playback
+            source.start(0);
+
+            // Store references
+            musicSource = source;
+            currentMusicId = levelId;
+
+            // Handle source end
+            source.onended = () => {
+                if (musicSource === source) {
+                    musicSource = null;
+                    currentMusicId = null;
+                }
+            };
+
+            logger.info(`[AudioManager] Playing ${levelId} music`);
+            return source;
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            throw fetchError;
+        }
     } catch (error) {
         logger.error(`[AudioManager] Error playing music for ${levelId}:`, error);
         musicSource = null;
@@ -240,43 +270,45 @@ export function getCurrentMusicId() {
  */
 export async function playWaveFile(filePath, volume = 0.5, loop = false) {
     if (!audioContext || !masterGain) {
-        console.error("[AudioManager] Cannot play wave file: Audio context not initialized");
+        logger.error("[AudioManager] Cannot play wave file: Audio context not initialized");
         return null;
     }
 
     try {
-        const response = await fetch(filePath);
+        // Add timeout for fetch operation
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const response = await fetch(filePath, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
             throw new Error(`Failed to fetch audio file: ${response.status} ${response.statusText}`);
         }
 
-
         const audioData = await response.arrayBuffer();
-
-
         const audioBuffer = await audioContext.decodeAudioData(audioData);
-
 
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffer;
         source.loop = loop;
 
-
         const gainNode = audioContext.createGain();
-        gainNode.gain.value = volume;
-
+        gainNode.gain.value = Math.max(0, Math.min(1, volume)); // Clamp volume
 
         source.connect(gainNode);
         gainNode.connect(masterGain);
 
-
         source.start(0);
-
 
         return source;
 
     } catch (e) {
-        logger.error("[AudioManager] Error playing wave file:", e);
+        if (e.name === 'AbortError') {
+            logger.error("[AudioManager] Audio file fetch timed out:", filePath);
+        } else {
+            logger.error("[AudioManager] Error playing wave file:", e);
+        }
         return null;
     }
 }

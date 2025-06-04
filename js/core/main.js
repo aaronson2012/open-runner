@@ -47,6 +47,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (initialized) {
             logger.info("Game initialized successfully, starting game loop");
             game.start();
+
+            // Set up cleanup on page unload
+            window.addEventListener('beforeunload', () => {
+                logger.info("Page unloading, cleaning up game resources");
+                if (window.game && typeof window.game.cleanup === 'function') {
+                    window.game.cleanup();
+                }
+            });
         } else {
             logger.error("Game initialization failed. See previous errors.");
             try {

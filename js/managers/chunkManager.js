@@ -144,23 +144,36 @@ export class ChunkManager {
     }
 
     async processNextChunkInQueue() {
-        if (this.chunksToUnloadQueue.size > 0) {
-            const keyToUnload = this.chunksToUnloadQueue.values().next().value;
-            this.chunksToUnloadQueue.delete(keyToUnload);
-            this.unloadChunk(keyToUnload);
-        }
-        else if (this.chunksToLoadQueue.size > 0) {
-            const keyToLoad = this.chunksToLoadQueue.values().next().value;
-            this.chunksToLoadQueue.delete(keyToLoad);
-            const [chunkX, chunkZ] = keyToLoad.split(',').map(Number);
-            await this.loadChunk(chunkX, chunkZ);
-        }
+        try {
+            if (this.chunksToUnloadQueue.size > 0) {
+                const keyToUnload = this.chunksToUnloadQueue.values().next().value;
+                this.chunksToUnloadQueue.delete(keyToUnload);
+                this.unloadChunk(keyToUnload);
+            }
+            else if (this.chunksToLoadQueue.size > 0) {
+                const keyToLoad = this.chunksToLoadQueue.values().next().value;
+                this.chunksToLoadQueue.delete(keyToLoad);
+                const [chunkX, chunkZ] = keyToLoad.split(',').map(Number);
 
-        if (this.chunksToLoadQueue.size > 0 || this.chunksToUnloadQueue.size > 0) {
-             requestAnimationFrame(() => this.processNextChunkInQueue());
-        } else {
+                // Validate chunk coordinates
+                if (isNaN(chunkX) || isNaN(chunkZ)) {
+                    logger.error(`Invalid chunk coordinates: ${keyToLoad}`);
+                    return;
+                }
+
+                await this.loadChunk(chunkX, chunkZ);
+            }
+
+            // Continue processing if there are more chunks and we haven't been stopped
+            if ((this.chunksToLoadQueue.size > 0 || this.chunksToUnloadQueue.size > 0) && this.processingQueues) {
+                 requestAnimationFrame(() => this.processNextChunkInQueue());
+            } else {
+                this.processingQueues = false;
+                logger.debug("Chunk load/unload queues processed.");
+            }
+        } catch (error) {
+            logger.error("Error in processNextChunkInQueue:", error);
             this.processingQueues = false;
-            logger.debug("Chunk load/unload queues processed.");
         }
     }
 
@@ -362,24 +375,42 @@ export class ChunkManager {
      */
     clearAllChunks() {
         logger.info(`Clearing all ${this.loadedChunks.size} loaded chunks...`);
+
+        // Stop any ongoing queue processing
         this.chunksToLoadQueue.clear();
         this.chunksToUnloadQueue.clear();
         this.processingQueues = false;
 
-        const keysToUnload = [...this.loadedChunks.keys()];
-        keysToUnload.forEach(key => {
-            this.unloadChunk(key);
-        });
+        try {
+            const keysToUnload = [...this.loadedChunks.keys()];
+            keysToUnload.forEach(key => {
+                try {
+                    this.unloadChunk(key);
+                } catch (error) {
+                    logger.error(`Error unloading chunk ${key}:`, error);
+                }
+            });
 
-        if (this.loadedChunks.size > 0) {
-            logger.warn(`loadedChunks map not empty after clearAllChunks. Size: ${this.loadedChunks.size}`);
+            // Force clear if any chunks remain
+            if (this.loadedChunks.size > 0) {
+                logger.warn(`loadedChunks map not empty after clearAllChunks. Size: ${this.loadedChunks.size}`);
+                this.loadedChunks.clear();
+            }
+
+            // Clear object pools
+            if (objectPoolManager) {
+                objectPoolManager.clearPools();
+            }
+
+            this.lastCameraChunkX = null;
+            this.lastCameraChunkZ = null;
+            logger.info("All chunks and pools cleared.");
+        } catch (error) {
+            logger.error("Error during clearAllChunks:", error);
+            // Force clear everything as fallback
             this.loadedChunks.clear();
+            this.lastCameraChunkX = null;
+            this.lastCameraChunkZ = null;
         }
-
-        objectPoolManager.clearPools(); // Use imported singleton directly
-
-        this.lastCameraChunkX = null;
-        this.lastCameraChunkZ = null;
-        logger.info("All chunks and pools cleared.");
     }
 }

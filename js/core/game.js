@@ -10,22 +10,16 @@ import { performanceManager } from '../config/config.js';
 import { controlsConfig } from '../config/controls.js';
 import configManager, { getConfig } from '../config/config.js';
 import { playerConfig } from '../config/player.js';
-import { worldConfig } from '../config/world.js';
 import { gameplayConfig } from '../config/gameplay.js';
-import { resetInputStates, initInputStateManager } from '../input/controlsSetup.js';
+import { resetInputStates } from '../input/controlsSetup.js';
 import { updateMobileControlsVisibility } from '../utils/deviceUtils.js';
 import * as ScoreManager from '../managers/scoreManager.js';
-import * as LevelManager from '../managers/levelManager.js';
 import * as UIManager from '../managers/uiManager.js';
-import { initPlayerManager, getPlayerManager } from '../managers/playerManager.js';
+import { initPlayerManager } from '../managers/playerManager.js';
 import cameraManager from '../managers/cameraManager.js';
 import sceneTransitionManager from '../managers/sceneTransitionManager.js';
 import atmosphericManager from '../managers/atmosphericManager.js';
 import { initScene } from '../rendering/sceneSetup.js';
-import { SpatialGrid } from '../physics/spatialGrid.js';
-import { EnemyManager } from '../managers/enemyManager.js';
-import { ChunkManager } from '../managers/chunkManager.js';
-import { ParticleManager } from '../managers/particleManager.js';
 import { initCollisionManager } from '../managers/collisionManager.js';
 
 const logger = createLogger('Game');
@@ -421,60 +415,95 @@ class Game {
      * @private
      */
     animate() {
-        this.animationFrameId = requestAnimationFrame(this.boundAnimate);
+        try {
+            this.animationFrameId = requestAnimationFrame(this.boundAnimate);
 
-        let deltaTime = this.clock.getDelta();
-        if (isNaN(deltaTime) || !isFinite(deltaTime) || deltaTime <= 0 || deltaTime > 1.0) {
-            deltaTime = 1 / 60;
-        }
-        deltaTime = Math.min(deltaTime, getConfig('MAX_DELTA_TIME', 1 / 15));
-
-        const elapsedTime = this.clock.getElapsedTime();
-        const currentState = this.gameStateManager.getCurrentState();
-
-        performanceManager.updateFps();
-        if (this.fpsCounter) {
-            updateFpsCounter(this.fpsCounter, performanceManager.getCurrentFps());
-        }
-
-        // Update camera manager
-        logger.debug(`Updating camera manager with state: ${currentState}`);
-        this.cameraManager.update(deltaTime, currentState, this.player);
-
-        if (currentState === GameStates.PLAYING) {
-            updateGameplay(
-                {
-                    player: this.player,
-                    playerController: this.playerController,
-                    chunkManager: this.chunkManager,
-                    enemyManager: this.enemyManager,
-                    particleManager: this.particleManager,
-                    collisionChecker: this.collisionChecker,
-                    atmosphericManager: this.atmosphericManager,
-                    playerAnimationTime: this.playerAnimationTime
-                },
-                deltaTime,
-                elapsedTime
-            );
-            this.playerAnimationTime += deltaTime;
-        }
-
-        this.sceneTransitionManager.update(deltaTime, elapsedTime);
-        this.activeScene = this.sceneTransitionManager.getActiveScene() || this.scene;
-
-        // Only log rendering issues when they occur
-        if (this.renderer && this.activeScene && this.camera) {
-            // Skip rendering during certain states to improve performance
-            const skipRender = currentState === GameStates.LOADING || 
-                              (currentState === GameStates.PAUSED && this.lastRenderFrameTime && 
-                                (elapsedTime - this.lastRenderFrameTime < 0.1)); // Render paused state at 10fps
-                               
-            if (!skipRender) {
-                this.renderer.render(this.activeScene, this.camera);
-                this.lastRenderFrameTime = elapsedTime;
+            let deltaTime = this.clock.getDelta();
+            if (isNaN(deltaTime) || !isFinite(deltaTime) || deltaTime <= 0 || deltaTime > 1.0) {
+                deltaTime = 1 / 60;
             }
-        } else {
-            logger.warn("Skipping render: Missing renderer, activeScene, or camera.");
+            deltaTime = Math.min(deltaTime, getConfig('MAX_DELTA_TIME', 1 / 15));
+
+            const elapsedTime = this.clock.getElapsedTime();
+            const currentState = this.gameStateManager.getCurrentState();
+
+            // Update performance manager
+            try {
+                performanceManager.updateFps();
+                if (this.fpsCounter) {
+                    updateFpsCounter(this.fpsCounter, performanceManager.getCurrentFps());
+                }
+            } catch (error) {
+                logger.error("Error updating performance manager:", error);
+            }
+
+            // Update camera manager
+            try {
+                if (this.cameraManager) {
+                    this.cameraManager.update(deltaTime, currentState, this.player);
+                }
+            } catch (error) {
+                logger.error("Error updating camera manager:", error);
+            }
+
+            // Update gameplay systems
+            if (currentState === GameStates.PLAYING) {
+                try {
+                    updateGameplay(
+                        {
+                            player: this.player,
+                            playerController: this.playerController,
+                            chunkManager: this.chunkManager,
+                            enemyManager: this.enemyManager,
+                            particleManager: this.particleManager,
+                            collisionChecker: this.collisionChecker,
+                            atmosphericManager: this.atmosphericManager,
+                            playerAnimationTime: this.playerAnimationTime
+                        },
+                        deltaTime,
+                        elapsedTime
+                    );
+                    this.playerAnimationTime += deltaTime;
+                } catch (error) {
+                    logger.error("Error in gameplay update:", error);
+                }
+            }
+
+            // Update scene transition manager
+            try {
+                if (this.sceneTransitionManager) {
+                    this.sceneTransitionManager.update(deltaTime, elapsedTime);
+                    this.activeScene = this.sceneTransitionManager.getActiveScene() || this.scene;
+                }
+            } catch (error) {
+                logger.error("Error updating scene transition manager:", error);
+            }
+
+            // Render the scene
+            try {
+                if (this.renderer && this.activeScene && this.camera) {
+                    // Skip rendering during certain states to improve performance
+                    const skipRender = currentState === GameStates.LOADING ||
+                                      (currentState === GameStates.PAUSED && this.lastRenderFrameTime &&
+                                        (elapsedTime - this.lastRenderFrameTime < 0.1)); // Render paused state at 10fps
+
+                    if (!skipRender) {
+                        this.renderer.render(this.activeScene, this.camera);
+                        this.lastRenderFrameTime = elapsedTime;
+                    }
+                } else {
+                    // Only log this occasionally to avoid spam
+                    if (Math.random() < 0.01) { // 1% chance to log
+                        logger.warn("Skipping render: Missing renderer, activeScene, or camera.");
+                    }
+                }
+            } catch (error) {
+                logger.error("Error during rendering:", error);
+            }
+        } catch (error) {
+            logger.error("Critical error in game loop:", error);
+            // Try to continue the game loop despite the error
+            this.animationFrameId = requestAnimationFrame(this.boundAnimate);
         }
     }
 
@@ -485,34 +514,80 @@ class Game {
     cleanup() {
         logger.info("Cleaning up game resources and event listeners");
 
-        // Remove global event listeners
-        if (this.resizeHandler) {
-            window.removeEventListener('resize', this.resizeHandler);
-        }
-
-        if (this.fpsToggleHandler) {
-            document.removeEventListener('keydown', this.fpsToggleHandler);
-        }
-
-        if (this.boundHandleGlobalKeys) {
-            document.removeEventListener('keydown', this.boundHandleGlobalKeys);
-        }
-
-        // Cancel animation frame if needed
+        // Cancel animation frame first to stop the game loop
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
 
-        // Clean up PlayerManager
+        // Remove global event listeners
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+        }
+
+        if (this.fpsToggleHandler) {
+            document.removeEventListener('keydown', this.fpsToggleHandler);
+            this.fpsToggleHandler = null;
+        }
+
+        if (this.boundHandleGlobalKeys) {
+            document.removeEventListener('keydown', this.boundHandleGlobalKeys);
+            this.boundHandleGlobalKeys = null;
+        }
+
+        // Clean up managers in proper order
         if (this.playerManager) {
             this.playerManager.cleanup();
+            this.playerManager = null;
+        }
+
+        if (this.chunkManager) {
+            this.chunkManager.clearAllChunks();
+            this.chunkManager = null;
+        }
+
+        if (this.enemyManager) {
+            this.enemyManager.removeAllEnemies();
+            this.enemyManager = null;
+        }
+
+        if (this.particleManager) {
+            this.particleManager.dispose();
+            this.particleManager = null;
+        }
+
+        if (this.audioManager) {
+            this.audioManager.stopMusic();
+            this.audioManager = null;
+        }
+
+        // Clean up event bus subscriptions
+        if (this.eventBus) {
+            this.eventBus.unsubscribeAll('applyPowerupEffect');
+            this.eventBus.unsubscribeAll('removePowerupEffect');
         }
 
         // Dispose of Three.js resources
         if (this.renderer) {
             this.renderer.dispose();
+            this.renderer = null;
         }
+
+        // Clear scene references
+        if (this.scene) {
+            this.scene.clear();
+            this.scene = null;
+        }
+
+        if (this.gameplayScene) {
+            this.gameplayScene.clear();
+            this.gameplayScene = null;
+        }
+
+        this.activeScene = null;
+        this.camera = null;
+        this.player = null;
 
         logger.info("Game cleanup completed");
     }
@@ -525,18 +600,27 @@ class Game {
      * @returns {Promise<void>}
      */
     async startGame(levelId) {
-        logger.info(`Starting level: ${levelId}`);
-
-        // Stop any currently playing music FIRST, before anything else
-        if (this.audioManager) {
-            logger.info(`Stopping current music before starting level: ${levelId}`);
-            this.audioManager.stopMusic();
-
-            // Add a short delay to ensure audio operations complete
-            await new Promise(resolve => setTimeout(resolve, 100));
-        } else {
-            logger.warn("Audio manager not available, cannot stop music");
+        // Prevent multiple simultaneous level loads
+        if (this._loadingLevel) {
+            logger.warn(`Already loading a level, ignoring request to load ${levelId}`);
+            return;
         }
+
+        this._loadingLevel = true;
+
+        try {
+            logger.info(`Starting level: ${levelId}`);
+
+            // Stop any currently playing music FIRST, before anything else
+            if (this.audioManager) {
+                logger.info(`Stopping current music before starting level: ${levelId}`);
+                await this.audioManager.stopMusic();
+
+                // Add a short delay to ensure audio operations complete
+                await new Promise(resolve => setTimeout(resolve, 100));
+            } else {
+                logger.warn("Audio manager not available, cannot stop music");
+            }
 
         resetInputStates();
         logger.info("Input states reset before starting game");
@@ -587,6 +671,13 @@ class Game {
 
         // Wait a small amount of time for state change events to be processed
         await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            logger.error(`Error in startGame for ${levelId}:`, error);
+            this.gameStateManager.setGameState(GameStates.TITLE);
+            this.uiManager.displayError(new Error(`Failed to start level ${levelId}.`));
+        } finally {
+            this._loadingLevel = false;
+        }
     }
 
 
@@ -606,20 +697,42 @@ class Game {
             // Unload previous level assets/state
             logger.info(`Cleaning up resources before loading level ${levelId}...`);
 
-            // First, remove all enemies
-            this.enemyManager.removeAllEnemies();
+            // First, remove all enemies with error handling
+            try {
+                if (this.enemyManager) {
+                    this.enemyManager.removeAllEnemies();
+                }
+            } catch (error) {
+                logger.error("Error removing enemies:", error);
+            }
 
-            // Clear all chunks and their content
-            this.chunkManager.clearAllChunks();
+            // Clear all chunks and their content with error handling
+            try {
+                if (this.chunkManager) {
+                    this.chunkManager.clearAllChunks();
+                }
+            } catch (error) {
+                logger.error("Error clearing chunks:", error);
+            }
 
-            // Clear atmospheric elements
-            this.atmosphericManager.clearElements();
+            // Clear atmospheric elements with error handling
+            try {
+                if (this.atmosphericManager) {
+                    this.atmosphericManager.clearElements();
+                }
+            } catch (error) {
+                logger.error("Error clearing atmospheric elements:", error);
+            }
 
             // Ensure complete level unloading if we're changing levels
-            const currentLevelId = this.levelManager.getCurrentLevelId();
-            if (currentLevelId && currentLevelId !== levelId) {
-                logger.info(`Unloading current level ${currentLevelId} before loading ${levelId}`);
-                this.levelManager.unloadCurrentLevel();
+            try {
+                const currentLevelId = this.levelManager.getCurrentLevelId();
+                if (currentLevelId && currentLevelId !== levelId) {
+                    logger.info(`Unloading current level ${currentLevelId} before loading ${levelId}`);
+                    this.levelManager.unloadCurrentLevel();
+                }
+            } catch (error) {
+                logger.error("Error unloading current level:", error);
             }
 
             // Force a garbage collection hint
@@ -702,7 +815,7 @@ class Game {
      * @param {THREE.Scene} sceneToUpdate - The scene object to apply changes to.
      * @private
      */
-     _updateSceneAppearance(levelConfig, sceneToUpdate) {
+    _updateSceneAppearance(levelConfig, sceneToUpdate) {
          if (sceneToUpdate && levelConfig) {
              sceneToUpdate.background = new THREE.Color(levelConfig.SCENE_BACKGROUND_COLOR);
              sceneToUpdate.fog = new THREE.Fog(levelConfig.SCENE_FOG_COLOR, levelConfig.SCENE_FOG_NEAR, levelConfig.SCENE_FOG_FAR);
@@ -731,7 +844,7 @@ class Game {
       * @param {KeyboardEvent} event - The keyboard event object.
       * @private
       */
-     handleGlobalKeys(event) {
+    handleGlobalKeys(event) {
         const currentState = this.gameStateManager.getCurrentState();
         logger.debug(`Key pressed: ${event.key} (lowercase: ${event.key.toLowerCase()}) in state: ${currentState}`);
 

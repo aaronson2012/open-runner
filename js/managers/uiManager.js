@@ -287,14 +287,30 @@ export function initUIManager() {
     }
 
     try {
-        eventBus.subscribe('scoreChanged', updateScore);
-        eventBus.subscribe('gameStateChanged', handleGameStateChange);
-        eventBus.subscribe('gameOverInfo', showGameOverScreenWithScore);
-        eventBus.subscribe('newHighScore', showNewHighScoreNotification);
-        eventBus.subscribe('currentScoreUpdated', checkForLiveHighScore);
-        eventBus.subscribe('levelUnlockSaved', (levelId) => {
-            showLevelUnlockedNotification(`Level ${levelId} Unlocked!`);
-        });
+        // Store unsubscribe functions for proper cleanup
+        window.uiManagerUnsubscribeFunctions = [];
+
+        window.uiManagerUnsubscribeFunctions.push(
+            eventBus.subscribe('scoreChanged', updateScore)
+        );
+        window.uiManagerUnsubscribeFunctions.push(
+            eventBus.subscribe('gameStateChanged', handleGameStateChange)
+        );
+        window.uiManagerUnsubscribeFunctions.push(
+            eventBus.subscribe('gameOverInfo', showGameOverScreenWithScore)
+        );
+        window.uiManagerUnsubscribeFunctions.push(
+            eventBus.subscribe('newHighScore', showNewHighScoreNotification)
+        );
+        window.uiManagerUnsubscribeFunctions.push(
+            eventBus.subscribe('currentScoreUpdated', checkForLiveHighScore)
+        );
+        window.uiManagerUnsubscribeFunctions.push(
+            eventBus.subscribe('levelUnlockSaved', (levelId) => {
+                showLevelUnlockedNotification(`Level ${levelId} Unlocked!`);
+            })
+        );
+
         logger.info("Subscribed to events");
     } catch (e) {
          logger.error("Failed to subscribe to eventBus events:", e);
@@ -313,6 +329,58 @@ export function initUIManager() {
     // Initial score/high score updates moved to gameInitializer.js
 
     return true;
+}
+
+/**
+ * Cleans up UI Manager resources and event listeners
+ */
+export function cleanupUIManager() {
+    logger.info("Cleaning up UI Manager resources");
+
+    // Clear notification timeout
+    if (notificationTimeout) {
+        clearTimeout(notificationTimeout);
+        notificationTimeout = null;
+    }
+
+    // Unsubscribe from all events
+    if (window.uiManagerUnsubscribeFunctions) {
+        window.uiManagerUnsubscribeFunctions.forEach(unsubscribe => {
+            if (typeof unsubscribe === 'function') {
+                try {
+                    unsubscribe();
+                } catch (error) {
+                    logger.error("Error unsubscribing from event:", error);
+                }
+            }
+        });
+        window.uiManagerUnsubscribeFunctions = [];
+    }
+
+    // Clear element references
+    scoreElement = null;
+    highScoreElement = null;
+    gameOverElement = null;
+    gameOverScoreElement = null;
+    gameOverHighScoreElement = null;
+    gameOverRestartButtonElement = null;
+    gameOverTitleButtonElement = null;
+    titleScreenElement = null;
+    startButtonElement = null;
+    levelSelectButtonElement = null;
+    loadingScreenElement = null;
+    progressBarElement = null;
+    progressTextElement = null;
+    levelSelectScreenElement = null;
+    levelListElement = null;
+    backToTitleButtonElement = null;
+    pauseMenuElement = null;
+    resumeButtonElement = null;
+    restartButtonElement = null;
+    returnToTitleButtonElement = null;
+    notificationElement = null;
+
+    logger.info("UI Manager cleanup completed");
 }
 
 /**

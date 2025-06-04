@@ -234,5 +234,46 @@ export class ParticleManager {
         this.particleGeometry.setDrawRange(0, this.activeParticleCount);
         this.particleGeometry.attributes.position.needsUpdate = true;
         this.particleGeometry.attributes.opacity.needsUpdate = true; // Update opacity attribute
-}
+    }
+
+    /**
+     * Disposes of particle system resources
+     */
+    dispose() {
+        logger.info("Disposing ParticleManager resources");
+
+        try {
+            // Remove from scene
+            if (this.particleSystem && this.particleSystem.parent) {
+                this.particleSystem.parent.remove(this.particleSystem);
+            }
+
+            // Dispose geometry
+            if (this.particleGeometry) {
+                this.particleGeometry.dispose();
+                this.particleGeometry = null;
+            }
+
+            // Dispose material and texture
+            if (this.particleMaterial) {
+                if (this.particleMaterial.map) {
+                    this.particleMaterial.map.dispose();
+                }
+                this.particleMaterial.dispose();
+                this.particleMaterial = null;
+            }
+
+            // Clear arrays
+            this.particles = [];
+            this.positions = null;
+            this.opacities = null;
+            this.particleSystem = null;
+            this.scene = null;
+            this.activeParticleCount = 0;
+
+            logger.info("ParticleManager resources disposed");
+        } catch (error) {
+            logger.error("Error disposing ParticleManager resources:", error);
+        }
+    }
 }

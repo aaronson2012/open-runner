@@ -25,8 +25,16 @@ class PlayerManager {
      * @private
      */
     _setupEventSubscriptions() {
-        eventBus.subscribe('powerupActivated', this.handlePowerupActivated.bind(this));
-        eventBus.subscribe('resetPowerups', this.resetPowerups.bind(this));
+        // Store unsubscribe functions for proper cleanup
+        this.unsubscribeFunctions = [];
+
+        this.unsubscribeFunctions.push(
+            eventBus.subscribe('powerupActivated', this.handlePowerupActivated.bind(this))
+        );
+        this.unsubscribeFunctions.push(
+            eventBus.subscribe('resetPowerups', this.resetPowerups.bind(this))
+        );
+
         logger.debug('PlayerManager event subscriptions set up');
     }
     
@@ -104,11 +112,20 @@ class PlayerManager {
      */
     cleanup() {
         this.resetPowerups();
-        
-        // Unsubscribe from events
-        eventBus.unsubscribe('powerupActivated', this.handlePowerupActivated);
-        eventBus.unsubscribe('resetPowerups', this.resetPowerups);
-        
+
+        // Unsubscribe from events using stored unsubscribe functions
+        if (this.unsubscribeFunctions) {
+            this.unsubscribeFunctions.forEach(unsubscribe => {
+                if (typeof unsubscribe === 'function') {
+                    unsubscribe();
+                }
+            });
+            this.unsubscribeFunctions = [];
+        }
+
+        // Clear player reference
+        this.player = null;
+
         logger.info('PlayerManager cleaned up');
     }
 }
