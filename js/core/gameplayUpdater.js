@@ -14,7 +14,7 @@ const logger = createLogger('GameplayUpdater', LogLevel.INFO);
  * @param {object} dependencies.chunkManager - The ChunkManager instance.
  * @param {object} dependencies.enemyManager - The EnemyManager instance.
  * @param {object} dependencies.particleManager - The ParticleManager instance.
- * @param {function} dependencies.collisionChecker - The collision checking function.
+ * @param {object} dependencies.collisionManager - The collision manager instance.
  * @param {object} dependencies.atmosphericManager - The AtmosphericManager instance.
  * @param {number} dependencies.playerAnimationTime - Current animation time for the player.
  * @param {number} deltaTime - Time elapsed since the last frame.
@@ -27,12 +27,12 @@ export function updateGameplay(dependencies, deltaTime, elapsedTime) {
         chunkManager,
         enemyManager,
         particleManager,
-        collisionChecker,
+        collisionManager,
         atmosphericManager,
         playerAnimationTime
     } = dependencies;
 
-    if (!player || !playerController || !chunkManager || !enemyManager || !particleManager || !collisionChecker || !atmosphericManager) {
+    if (!player || !playerController || !chunkManager || !enemyManager || !particleManager || !collisionManager || !atmosphericManager) {
         logger.error("Missing one or more dependencies in updateGameplay. Aborting update.");
         return;
     }
@@ -62,7 +62,7 @@ export function updateGameplay(dependencies, deltaTime, elapsedTime) {
         atmosphericManager.update(deltaTime, elapsedTime);
     }
 
-    if (collisionChecker && player?.model) {
-        collisionChecker(player);
+    if (collisionManager && player?.model) {
+        collisionManager.update(player);
     }
 }

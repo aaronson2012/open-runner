@@ -137,10 +137,6 @@ export class EnemyManager {
             enemyInstance.removeFromScene();
             this.activeEnemies.delete(meshId);
             this.objectPoolManager.addToPool('enemies', enemyInstance, enemyInstance.type);
-        } else {
-            logger.warn(`[EnemyManager] Attempted to remove enemy (ID: ${meshId}) not found in active list.`);
-            this.spatialGrid.remove(enemyInstance.mesh);
-            enemyInstance.removeFromScene();
         }
     }
 
@@ -194,6 +190,14 @@ export class EnemyManager {
      */
     getActiveEnemiesCount() {
         return this.activeEnemies.size;
+    }
+
+    /**
+     * Gets all active enemy instances.
+     * @returns {IterableIterator<Enemy>} An iterator for the active enemy instances.
+     */
+    getActiveEnemies() {
+        return this.activeEnemies.values();
     }
 
     /**

@@ -124,13 +124,22 @@ class PerformanceManager {
 
         // Get WebGL info
         const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : '';
-        const vendor = debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : '';
+        let renderer = '';
+        let vendor = '';
 
-        // Only log renderer info at ERROR level for debugging purposes
-        if (logger.minLevel <= LogLevel.ERROR) {
-            logger.error(`Detected renderer: ${renderer}, vendor: ${vendor}`);
+        if (debugInfo) {
+            try {
+                renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+                vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
+            } catch (e) {
+                logger.warn('Could not retrieve WebGL renderer info, proceeding with defaults.', e);
+            }
+        } else {
+            logger.warn('WEBGL_debug_renderer_info extension not available.');
         }
+
+        // Log renderer info for debugging purposes
+        logger.debug(`Detected renderer: ${renderer}, vendor: ${vendor}`);
 
         // Check for WebGL 2 support
         const hasWebGL2 = !!window.WebGL2RenderingContext && !!canvas.getContext('webgl2');
@@ -357,6 +366,7 @@ class PerformanceManager {
             }
         }, 500); // Wait 500ms after resize stops before re-detecting
     }
+
 }
 
 // Create singleton instance

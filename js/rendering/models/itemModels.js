@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { modelsConfig as C_MODELS } from '../../config/models.js';
+import { getGeometry, getMaterial } from '../../managers/assetManager.js';
 
 const logger = createLogger('ItemModels');
 
@@ -15,34 +16,32 @@ export function createMagnetModel(properties) {
     const config = C_MODELS.MAGNET;
     const size = properties?.size || config.DEFAULT_SIZE;
     const color = properties?.color || config.DEFAULT_COLOR;
-    const magnetMat = new THREE.MeshStandardMaterial({ color: color, emissive: config.MAGNET_EMISSIVE, metalness: config.MAGNET_METALNESS, roughness: config.MAGNET_ROUGHNESS });
-    const whiteTipMat = new THREE.MeshStandardMaterial({ color: config.TIP_COLOR, emissive: config.TIP_EMISSIVE, metalness: config.TIP_METALNESS, roughness: config.TIP_ROUGHNESS });
+    const magnetMat = getMaterial(`magnet-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, emissive: config.MAGNET_EMISSIVE, metalness: config.MAGNET_METALNESS, roughness: config.MAGNET_ROUGHNESS }));
+    const whiteTipMat = getMaterial('magnet-tip-mat', () => new THREE.MeshStandardMaterial({ color: config.TIP_COLOR, emissive: config.TIP_EMISSIVE, metalness: config.TIP_METALNESS, roughness: config.TIP_ROUGHNESS }));
     const baseWidth = size * config.BASE_WIDTH_FACTOR;
     const baseHeight = size * config.BASE_HEIGHT_FACTOR;
-    const baseGeo = new THREE.TorusGeometry(baseWidth/2, baseHeight/2, config.BASE_SEGMENTS, config.BASE_SEGMENTS, config.BASE_ARC);
+    const baseGeo = getGeometry('magnet-base', () => new THREE.TorusGeometry(baseWidth/2, baseHeight/2, config.BASE_SEGMENTS, config.BASE_SEGMENTS, config.BASE_ARC));
     const base = new THREE.Mesh(baseGeo, magnetMat);
     base.rotation.x = config.GROUP_ROTATION_X; // Apply rotation here if needed, or to tiltedGroup later
     base.position.set(0, 0, 0);
     group.add(base);
     const armWidth = size * config.ARM_WIDTH_FACTOR;
     const armHeight = size * config.ARM_HEIGHT_FACTOR;
-    const leftArmGeo = new THREE.CylinderGeometry(armWidth/2, armWidth/2, armHeight, config.ARM_SEGMENTS);
-    const leftArm = new THREE.Mesh(leftArmGeo, magnetMat);
+    const armGeo = getGeometry('magnet-arm', () => new THREE.CylinderGeometry(armWidth/2, armWidth/2, armHeight, config.ARM_SEGMENTS));
+    const leftArm = new THREE.Mesh(armGeo, magnetMat);
     leftArm.position.set(-baseWidth/2 + armWidth/2, armHeight/2, 0);
     group.add(leftArm);
-    const rightArmGeo = new THREE.CylinderGeometry(armWidth/2, armWidth/2, armHeight, config.ARM_SEGMENTS);
-    const rightArm = new THREE.Mesh(rightArmGeo, magnetMat);
+    const rightArm = new THREE.Mesh(armGeo, magnetMat);
     rightArm.position.set(baseWidth/2 - armWidth/2, armHeight/2, 0);
     group.add(rightArm);
     const tipRadius = size * config.TIP_RADIUS_FACTOR;
     const tipHeight = size * config.TIP_HEIGHT_FACTOR;
-    const leftTipGeo = new THREE.CylinderGeometry(tipRadius, tipRadius, tipHeight, config.TIP_SEGMENTS);
-    const leftTip = new THREE.Mesh(leftTipGeo, whiteTipMat);
+    const tipGeo = getGeometry('magnet-tip', () => new THREE.CylinderGeometry(tipRadius, tipRadius, tipHeight, config.TIP_SEGMENTS));
+    const leftTip = new THREE.Mesh(tipGeo, whiteTipMat);
     // leftTip.rotation.x = config.GROUP_ROTATION_X; // Rotation applied to group
     leftTip.position.set(-baseWidth/2 + armWidth/2, armHeight + tipHeight/2, 0);
     group.add(leftTip);
-    const rightTipGeo = new THREE.CylinderGeometry(tipRadius, tipRadius, tipHeight, config.TIP_SEGMENTS);
-    const rightTip = new THREE.Mesh(rightTipGeo, whiteTipMat);
+    const rightTip = new THREE.Mesh(tipGeo, whiteTipMat);
     // rightTip.rotation.x = config.GROUP_ROTATION_X; // Rotation applied to group
     rightTip.position.set(baseWidth/2 - armWidth/2, armHeight + tipHeight/2, 0);
     group.add(rightTip);
@@ -71,25 +70,24 @@ export function createDoublerModel(props = {}) {
   const scaleFactor = 3.75; // 1.5 (original) * 2.5 = 3.75
   
   // Create a material for the X
-  const xMaterial = new THREE.MeshStandardMaterial({
+  const xMaterial = getMaterial(`doubler-mat-${color}`, () => new THREE.MeshStandardMaterial({
     color: color,
     emissive: new THREE.Color(0x0044AA),
     metalness: 0.6,
     roughness: 0.2
-  });
+  }));
   
   // Create the first diagonal bar of the "X" (top-left to bottom-right)
-  const diag1Geometry = new THREE.BoxGeometry(size * 0.25 * scaleFactor, size * scaleFactor, size * 0.25 * scaleFactor);
+  const diag1Geometry = getGeometry('doubler-diag', () => new THREE.BoxGeometry(size * 0.25 * scaleFactor, size * scaleFactor, size * 0.25 * scaleFactor));
   const diag1 = new THREE.Mesh(diag1Geometry, xMaterial);
   diag1.rotation.z = Math.PI / 4; // 45-degree angle
   
   // Create the second diagonal bar of the "X" (top-right to bottom-left)
-  const diag2Geometry = new THREE.BoxGeometry(size * 0.25 * scaleFactor, size * scaleFactor, size * 0.25 * scaleFactor);
-  const diag2 = new THREE.Mesh(diag2Geometry, xMaterial);
+  const diag2 = new THREE.Mesh(diag1Geometry, xMaterial); // Reuse geometry
   diag2.rotation.z = -Math.PI / 4; // -45-degree angle
   
   // Create a central sphere where the two bars meet
-  const centerGeometry = new THREE.SphereGeometry(size * 0.2 * scaleFactor, 16, 16);
+  const centerGeometry = getGeometry('doubler-center', () => new THREE.SphereGeometry(size * 0.2 * scaleFactor, 16, 16));
   const center = new THREE.Mesh(centerGeometry, xMaterial);
   
   // Add all meshes to the group
@@ -118,36 +116,36 @@ export function createInvisibilityModel(props = {}) {
   const color = props.color || config.DEFAULT_COLOR;
   
   // Create a material for the main sphere with transparency
-  const sphereMaterial = new THREE.MeshStandardMaterial({
+  const sphereMaterial = getMaterial(`invisibility-mat-${color}`, () => new THREE.MeshStandardMaterial({
     color: color,
     emissive: config.INVISIBILITY_EMISSIVE,
     metalness: config.INVISIBILITY_METALNESS,
     roughness: config.INVISIBILITY_ROUGHNESS,
     transparent: true,
     opacity: config.INVISIBILITY_OPACITY
-  });
+  }));
   
   // Create the central sphere
-  const sphereGeometry = new THREE.SphereGeometry(size * 0.6, 24, 18);
+  const sphereGeometry = getGeometry('invisibility-sphere', () => new THREE.SphereGeometry(size * 0.6, 24, 18));
   const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
   group.add(sphere);
   
   // Create the outer aura/ring
   const auraRadius = size * config.AURA_RADIUS_FACTOR;
   const auraThickness = size * config.AURA_THICKNESS_FACTOR;
-  const auraGeometry = new THREE.TorusGeometry(
-    auraRadius, 
-    auraThickness, 
-    8, 
+  const auraGeometry = getGeometry('invisibility-aura', () => new THREE.TorusGeometry(
+    auraRadius,
+    auraThickness,
+    8,
     config.AURA_SEGMENTS
-  );
+  ));
   
-  const auraMaterial = new THREE.MeshStandardMaterial({
+  const auraMaterial = getMaterial('invisibility-aura-mat', () => new THREE.MeshStandardMaterial({
     color: config.AURA_COLOR,
     emissive: config.AURA_EMISSIVE,
     transparent: true,
     opacity: config.AURA_OPACITY
-  });
+  }));
   
   // Create multiple aura rings at different orientations for spherical effect
   const auraRingCount = 3;
@@ -168,17 +166,15 @@ export function createInvisibilityModel(props = {}) {
   }
   
   // Add floating particles around the sphere
-  for (let i = 0; i < config.PARTICLE_COUNT; i++) {
-    const particleSize = size * config.PARTICLE_SIZE_FACTOR;
-    const particleGeometry = new THREE.SphereGeometry(particleSize, 6, 6);
-    
-    const particleMaterial = new THREE.MeshStandardMaterial({
+  const particleGeometry = getGeometry('invisibility-particle', () => new THREE.SphereGeometry(size * config.PARTICLE_SIZE_FACTOR, 6, 6));
+  const particleMaterial = getMaterial(`invisibility-particle-mat-${color}`, () => new THREE.MeshStandardMaterial({
       color: color,
       emissive: config.INVISIBILITY_EMISSIVE,
       transparent: true,
       opacity: 0.6
-    });
-    
+  }));
+
+  for (let i = 0; i < config.PARTICLE_COUNT; i++) {
     const particle = new THREE.Mesh(particleGeometry, particleMaterial);
     
     // Position particles in a spherical arrangement

@@ -56,7 +56,7 @@ class Game {
         this.cameraManager = cameraManager;
         this.sceneTransitionManager = sceneTransitionManager;
         this.chunkManager = null;
-        this.collisionChecker = null;
+        this.collisionManager = null;
         this.enemyManager = null;
         this.gameStateManager = gameStateManager;
         this.levelManager = null;
@@ -103,7 +103,7 @@ class Game {
         this.cameraManager = initResult.cameraManager;
         this.sceneTransitionManager = initResult.sceneTransitionManager;
         this.chunkManager = initResult.chunkManager;
-        this.collisionChecker = initResult.collisionChecker;
+        this.collisionManager = initResult.collisionManager;
         this.enemyManager = initResult.enemyManager;
 
         this.levelManager = initResult.levelManager;
@@ -176,7 +176,7 @@ class Game {
             player: this.player,
             levelManager: this.levelManager,
             scoreManager: ScoreManager,
-            uiManagers: this.uiManagers,
+            uiManager: this.uiManagers.HUDManager,
             cameraManager: this.cameraManager,
             sceneTransitionManager: this.sceneTransitionManager,
             atmosphericManager: this.atmosphericManager,
@@ -232,7 +232,7 @@ class Game {
                     chunkManager: this.chunkManager,
                     enemyManager: this.enemyManager,
                     particleManager: this.particleManager,
-                    collisionChecker: this.collisionChecker,
+                    collisionManager: this.collisionManager,
                     atmosphericManager: this.atmosphericManager,
                     playerAnimationTime: this.playerAnimationTime
                 },
@@ -355,7 +355,7 @@ class Game {
         this.chunkManager.setScene(this.gameplayScene);
         this.particleManager.setScene(this.gameplayScene);
         this.atmosphericManager.setTargetScene(this.gameplayScene);
-        initCollisionManager(this.spatialGrid, this.chunkManager); // Re-initialize with current refs
+        initCollisionManager(this.spatialGrid, this.chunkManager, this.enemyManager); // Re-initialize with current refs
 
         // Load level assets, chunks etc.
         await this._loadLevel(levelId);

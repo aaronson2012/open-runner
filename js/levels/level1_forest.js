@@ -43,7 +43,7 @@ export const level1Config = {
             color: 0x8B4513, // Brown
             minDistance: 20.0, // Reduced from 25.0
             verticalOffset: 0.1,
-            maxPlacementAttempts: 15
+            maxPlacementAttempts: 30
         },
         'squirrel': {
             speed: 12.0,
@@ -52,7 +52,7 @@ export const level1Config = {
             color: 0xA0522D, // Sienna/Reddish-brown
             minDistance: 8.0,
             verticalOffset: 0.1,
-            maxPlacementAttempts: 10
+            maxPlacementAttempts: 25
         },
         'deer': {
             speed: 10.0,
@@ -61,7 +61,7 @@ export const level1Config = {
             color: 0xD2B48C, // Tan
             minDistance: 15.0,
             verticalOffset: 0.1,
-            maxPlacementAttempts: 12
+            maxPlacementAttempts: 25
         }
     },
 

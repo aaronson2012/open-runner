@@ -1,6 +1,6 @@
 // js/rendering/models/robustTree.js
 import * as THREE from 'three';
-import * as AssetManager from '../../managers/assetManager.js';
+import { getAsset, getGeometry, getMaterial } from '../../managers/assetManager.js';
 import { createLogger } from '../../utils/logger.js';
 import { modelsConfig as C_MODELS } from '../../config/models.js';
 
@@ -9,7 +9,7 @@ const logger = createLogger('RobustTree');
 /**
  * Creates a robust pine tree that maintains structural integrity through cloning
  * rather than using complex parent-child relationships that can be broken.
- * 
+ *
  * @returns {THREE.Group} A complete tree with trunk and foliage
  */
 export function createRobustTree() {
@@ -21,31 +21,29 @@ export function createRobustTree() {
     treeGroup.userData.objectType = 'tree_pine';
     
     // Get materials from asset manager or create fallbacks
-    const trunkMaterial = AssetManager.getAsset(config.TRUNK_MATERIAL_KEY) || 
-                         new THREE.MeshStandardMaterial({ 
-                            color: config.FALLBACK_TRUNK_COLOR, 
-                            roughness: config.FALLBACK_TRUNK_ROUGHNESS 
-                         });
+    const trunkMaterial = getMaterial(config.TRUNK_MATERIAL_KEY, () => new THREE.MeshStandardMaterial({
+                            color: config.FALLBACK_TRUNK_COLOR,
+                            roughness: config.FALLBACK_TRUNK_ROUGHNESS
+                         }));
     
-    const foliageMaterial = AssetManager.getAsset(config.FOLIAGE_MATERIAL_KEY) || 
-                           new THREE.MeshStandardMaterial({ 
-                              color: config.FALLBACK_FOLIAGE_COLOR, 
-                              roughness: config.FALLBACK_FOLIAGE_ROUGHNESS 
-                           });
+    const foliageMaterial = getMaterial(config.FOLIAGE_MATERIAL_KEY, () => new THREE.MeshStandardMaterial({
+                               color: config.FALLBACK_FOLIAGE_COLOR,
+                               roughness: config.FALLBACK_FOLIAGE_ROUGHNESS
+                           }));
 
     // Create geometries
-    const trunkGeometry = new THREE.CylinderGeometry(
-        config.TRUNK_RADIUS, 
-        config.TRUNK_RADIUS, 
-        config.TRUNK_HEIGHT, 
+    const trunkGeometry = getGeometry('robust-tree-trunk', () => new THREE.CylinderGeometry(
+        config.TRUNK_RADIUS,
+        config.TRUNK_RADIUS,
+        config.TRUNK_HEIGHT,
         config.TRUNK_SEGMENTS
-    );
+    ));
     
-    const foliageGeometry = new THREE.ConeGeometry(
-        config.FOLIAGE_RADIUS, 
-        config.FOLIAGE_HEIGHT, 
+    const foliageGeometry = getGeometry('robust-tree-foliage', () => new THREE.ConeGeometry(
+        config.FOLIAGE_RADIUS,
+        config.FOLIAGE_HEIGHT,
         config.FOLIAGE_SEGMENTS
-    );
+    ));
     
     // Create the trunk mesh
     const trunkMesh = new THREE.Mesh(trunkGeometry, trunkMaterial);
@@ -77,7 +75,7 @@ export function createRobustTree() {
 
 /**
  * Creates a copy of the template tree at the specific position with given properties
- * 
+ *
  * @param {THREE.Vector3} position - Position to place the tree
  * @param {Object} properties - Properties like scale, rotation, etc
  * @returns {THREE.Group} A new tree instance
@@ -145,18 +143,13 @@ export function createTreeAtPosition(position, properties = {}) {
         // Rebuild missing parts
         if (!hasTrunk) {
             const config = C_MODELS.TREE_PINE;
-            const trunkGeometry = new THREE.CylinderGeometry(
-                config.TRUNK_RADIUS, 
-                config.TRUNK_RADIUS, 
-                config.TRUNK_HEIGHT, 
-                config.TRUNK_SEGMENTS
-            );
+            const trunkGeometry = getGeometry('robust-tree-trunk');
             
-            const trunkMaterial = AssetManager.getAsset(config.TRUNK_MATERIAL_KEY) || 
-                                 new THREE.MeshStandardMaterial({ 
-                                    color: config.FALLBACK_TRUNK_COLOR, 
-                                    roughness: config.FALLBACK_TRUNK_ROUGHNESS 
-                                 });
+            const trunkMaterial = getAsset(config.TRUNK_MATERIAL_KEY) ||
+                                 getMaterial(config.TRUNK_MATERIAL_KEY, () => new THREE.MeshStandardMaterial({
+                                    color: config.FALLBACK_TRUNK_COLOR,
+                                    roughness: config.FALLBACK_TRUNK_ROUGHNESS
+                                 }));
             
             const trunkMesh = new THREE.Mesh(trunkGeometry, trunkMaterial);
             trunkMesh.name = config.TRUNK_NAME;
@@ -170,17 +163,13 @@ export function createTreeAtPosition(position, properties = {}) {
         
         if (!hasFoliage) {
             const config = C_MODELS.TREE_PINE;
-            const foliageGeometry = new THREE.ConeGeometry(
-                config.FOLIAGE_RADIUS, 
-                config.FOLIAGE_HEIGHT, 
-                config.FOLIAGE_SEGMENTS
-            );
+            const foliageGeometry = getGeometry('robust-tree-foliage');
             
-            const foliageMaterial = AssetManager.getAsset(config.FOLIAGE_MATERIAL_KEY) || 
-                                   new THREE.MeshStandardMaterial({ 
-                                      color: config.FALLBACK_FOLIAGE_COLOR, 
-                                      roughness: config.FALLBACK_FOLIAGE_ROUGHNESS 
-                                   });
+            const foliageMaterial = getAsset(config.FOLIAGE_MATERIAL_KEY) ||
+                                   getMaterial(config.FOLIAGE_MATERIAL_KEY, () => new THREE.MeshStandardMaterial({
+                                      color: config.FALLBACK_FOLIAGE_COLOR,
+                                      roughness: config.FALLBACK_FOLIAGE_ROUGHNESS
+                                   }));
             
             const foliageMesh = new THREE.Mesh(foliageGeometry, foliageMaterial);
             foliageMesh.name = config.FOLIAGE_NAME;

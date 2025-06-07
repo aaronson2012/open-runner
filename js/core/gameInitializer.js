@@ -15,7 +15,7 @@ import * as LevelManager from '../managers/levelManager.js';
 import gameStateManager, { GameStates } from './gameStateManager.js';
 import eventBus from './eventBus.js';
 import { initPlayerController, updatePlayer as updatePlayerController } from '../entities/playerController.js';
-import { initCollisionManager, checkCollisions } from '../managers/collisionManager.js';
+import * as collisionManager from '../managers/collisionManager.js';
 import * as ScoreManager from '../managers/scoreManager.js';
 import * as AssetManager from '../managers/assetManager.js';
 import * as MenuManager from '../managers/ui/menuManager.js';
@@ -86,8 +86,7 @@ export async function initializeGame(canvasElement) {
 
         const raycaster = new THREE.Raycaster();
         initPlayerController(raycaster);
-        initCollisionManager(spatialGrid, chunkManager);
-        const collisionChecker = checkCollisions;
+        collisionManager.initCollisionManager(spatialGrid, chunkManager, enemyManager);
 
         setupPlayerControls(renderer.domElement);
         initInputStateManager();
@@ -111,7 +110,7 @@ export async function initializeGame(canvasElement) {
             cameraManager,
             sceneTransitionManager,
             chunkManager,
-            collisionChecker,
+            collisionManager,
             enemyManager,
             gameStateManager,
             levelManager: LevelManager,

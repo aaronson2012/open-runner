@@ -82,7 +82,7 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
                 logger.warn(`Missing properties for enemy type: ${chosenType}`);
                 continue;
             }
-            const { minDistance = 10, verticalOffset = 0, maxPlacementAttempts = 20 } = properties;
+            const { minDistance = 10, verticalOffset = 0, maxPlacementAttempts = 40 } = properties;
 
             const position = findValidPosition(
                 rng, chunkOffsetX, chunkOffsetZ, minDistance, playerSpawnPoint,

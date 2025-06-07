@@ -39,6 +39,7 @@ function setupEventListeners() {
     });
 
     eventBus.subscribe('gameStateChanged', ({ newState, previousState }) => { // Destructure newState and previousState
+logger.debug('[AudioManager] Received gameStateChanged event detail:', { newState, previousState, eventDetail: arguments[0] }); // Log the whole event detail
         logger.info(`Audio handling game state change: ${previousState} -> ${newState}`);
 
         if (newState === GameStates.GAME_OVER) {

@@ -320,6 +320,31 @@ export class ChunkManager {
         // If beyond all defined levels, return the lowest detail
         return terrainConfig.LOD_LEVELS[terrainConfig.LOD_LEVELS.length - 1].segments;
     }
+
+    /**
+     * Retrieves chunk data for chunks within a given radius of a position.
+     * @param {THREE.Vector3} position - The center position to query around.
+     * @param {number} radius - The radius in chunks to check.
+     * @returns {Map<string, object>} A map of chunk data for nearby chunks.
+     */
+    getNearbyChunks(position, radius = 2) {
+        const { chunkX: centerChunkX, chunkZ: centerChunkZ } = this.getPositionChunkCoords(position);
+        const nearbyChunks = new Map();
+        if (centerChunkX === null || centerChunkZ === null) {
+            return nearbyChunks;
+        }
+        for (let x = centerChunkX - radius; x <= centerChunkX + radius; x++) {
+            for (let z = centerChunkZ - radius; z <= centerChunkZ + radius; z++) {
+                const key = `${x},${z}`;
+                const chunkData = this.loadedChunks.get(key);
+                if (chunkData) {
+                    nearbyChunks.set(key, chunkData);
+                }
+            }
+        }
+        return nearbyChunks;
+    }
+    
     /**
      * Loads the initial set of chunks around the starting position.
      * @param {Function} [progressCallback] - Optional callback for loading progress (loaded, total).
@@ -372,11 +397,13 @@ export class ChunkManager {
     }
 
     updateCollectibles(deltaTime, elapsedTime, playerPosition, playerPowerup) {
-        this.contentManager.updateCollectibles(this.loadedChunks, deltaTime, elapsedTime, playerPosition, playerPowerup);
+        const nearbyChunks = this.getNearbyChunks(playerPosition, 2); // Process chunks in a 2-chunk radius
+        this.contentManager.updateCollectibles(nearbyChunks, deltaTime, elapsedTime, playerPosition, playerPowerup);
     }
 
     updateTumbleweeds(deltaTime, elapsedTime, playerPosition) {
-        this.contentManager.updateTumbleweeds(this.loadedChunks, deltaTime, elapsedTime, playerPosition);
+        const nearbyChunks = this.getNearbyChunks(playerPosition, 3); // Tumbleweeds need a larger update radius
+        this.contentManager.updateTumbleweeds(nearbyChunks, deltaTime, elapsedTime, playerPosition);
     }
 
     // --- Cleanup ---

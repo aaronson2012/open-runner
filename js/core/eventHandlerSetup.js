@@ -53,8 +53,6 @@ export function setupEventHandlers(dependencies) {
         logger.warn("UIManager not provided to event handlers. Some UI updates may not work properly.");
     }
     
-    // Initialize PlayerManager with player object
-    initPlayerManager(player);
     const playerManager = getPlayerManager();
 
 

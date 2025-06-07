@@ -24,6 +24,7 @@ const playerCollisionRadius = playerConfig.TORSO_WIDTH; // Use imported constant
 // --- Module State ---
 let _spatialGrid = null;
 let _chunkManager = null;
+let _enemyManager = null;
 // let _scoreUpdater = null; // No longer needed, use eventBus
 // let _gameOverHandler = null; // No longer needed, use eventBus
 
@@ -31,11 +32,13 @@ let _chunkManager = null;
  * Initializes the Collision Manager with necessary dependencies.
  * @param {SpatialGrid} spatialGridInstance
  * @param {ChunkManager} chunkManagerInstance
+ * @param {EnemyManager} enemyManagerInstance
  * Removed scoreUpdateCallback and gameOverCallback, using eventBus instead.
  */
-export function initCollisionManager(spatialGridInstance, chunkManagerInstance) {
+export function initCollisionManager(spatialGridInstance, chunkManagerInstance, enemyManagerInstance) {
     _spatialGrid = spatialGridInstance;
     _chunkManager = chunkManagerInstance;
+    _enemyManager = enemyManagerInstance;
     // _scoreUpdater = scoreUpdateCallback; // Removed
     // _gameOverHandler = gameOverCallback; // Removed
 }
@@ -45,20 +48,20 @@ export function initCollisionManager(spatialGridInstance, chunkManagerInstance) 
  * @param {Object} player - The player object containing position data.
  * @returns {boolean} True if collision checking was performed, false if skipped.
  */
-export function checkCollisions(player) {
+function checkPlayerCollisions(player) {
     // Validate player object
     if (!player) {
-        logger.warn('checkCollisions: Player object is null or undefined');
+        logger.warn('checkPlayerCollisions: Player object is null or undefined');
         return false;
     }
 
     if (!player.model) {
-        logger.warn('checkCollisions: Player model is null or undefined');
+        logger.warn('checkPlayerCollisions: Player model is null or undefined');
         return false;
     }
 
     if (!player.model.position) {
-        logger.warn('checkCollisions: Player model has no position property');
+        logger.warn('checkPlayerCollisions: Player model has no position property');
         return false;
     }
 
@@ -71,12 +74,12 @@ export function checkCollisions(player) {
     }
 
     if (!_spatialGrid) {
-        logger.error('checkCollisions: Spatial grid not initialized');
+        logger.error('checkPlayerCollisions: Spatial grid not initialized');
         return false;
     }
 
     if (!_chunkManager) {
-        logger.error('checkCollisions: Chunk manager not initialized');
+        logger.error('checkPlayerCollisions: Chunk manager not initialized');
         return false;
     }
 
@@ -181,4 +184,82 @@ export function checkCollisions(player) {
     }
 
     return true; // Return true to indicate collision checking was performed
+}
+
+/**
+ * Checks for collisions between an enemy and nearby objects.
+ * @param {Object} enemy - The enemy object.
+ */
+function checkEnemyCollisions(enemy) {
+    // Validate enemy and its model before proceeding
+    if (!enemy || !enemy.model || !enemy.model.parent) {
+        // If the model is not in the scene, it might have been removed by the chunk manager
+        // This is not an error, but a race condition we need to handle gracefully
+        return;
+    }
+
+    if (!enemy.model.position) {
+        logger.warn('checkEnemyCollisions: Invalid enemy object provided');
+        return;
+    }
+
+    const nearbyObjects = _spatialGrid.queryNearby(enemy.model.position);
+    if (!nearbyObjects || nearbyObjects.size === 0) {
+        return;
+    }
+
+    for (const mesh of nearbyObjects) {
+        if (!mesh || !mesh.userData || !mesh.position || mesh === enemy.model) continue;
+
+        const objectType = mesh.userData.objectType;
+        if (!objectType) continue;
+
+        const modelConfig = modelsConfig[objectType.toUpperCase()];
+        if (!modelConfig || !modelConfig.collision) continue;
+
+        const dx = enemy.model.position.x - mesh.position.x;
+        const dz = enemy.model.position.z - mesh.position.z;
+        const distanceSq = dx * dx + dz * dz;
+
+        const enemyCollisionRadius = (enemy.model.geometry.boundingBox.max.x - enemy.model.geometry.boundingBox.min.x) / 2;
+        let objectCollisionRadius = modelConfig.COLLISION_RADIUS || 0.5;
+        if (mesh.scale) {
+            objectCollisionRadius *= mesh.scale.x;
+        }
+
+        const collisionThresholdSq = (enemyCollisionRadius + objectCollisionRadius) ** 2;
+
+        if (distanceSq < collisionThresholdSq) {
+            // Enemies push each other away
+            if (modelConfig.collision.type === 'enemy') {
+                const overlap = Math.sqrt(collisionThresholdSq) - Math.sqrt(distanceSq);
+                if (overlap > 0) {
+                    const pushback = new THREE.Vector3(dx, 0, dz).normalize().multiplyScalar(overlap * 0.5);
+                    enemy.model.position.add(pushback);
+                    mesh.position.sub(pushback);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Main update function for the collision manager.
+ * @param {Object} player - The player object.
+ */
+export function update(player) {
+    if (gameStateManager.getCurrentState() !== GameStates.PLAYING) {
+        return;
+    }
+
+    checkPlayerCollisions(player);
+
+    if (_enemyManager) {
+        const activeEnemies = _enemyManager.getActiveEnemies();
+        // Create a snapshot of the enemies to prevent issues with concurrent modification
+        const enemiesSnapshot = [...activeEnemies];
+        for (const enemy of enemiesSnapshot) {
+            checkEnemyCollisions(enemy);
+        }
+    }
 }

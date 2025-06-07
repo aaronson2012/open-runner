@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { modelsConfig as C_MODELS } from '../../config/models.js';
+import { getGeometry, getMaterial } from '../../managers/assetManager.js';
 // Import helper functions from the utility file
 import { createBoxPart, createEyes, createSnout, createEars } from '../modelUtils.js';
 
@@ -20,16 +21,16 @@ export function createBearModel(properties) {
     const headWidth = config.HEAD_WIDTH, headHeight = config.HEAD_HEIGHT, headDepth = config.HEAD_DEPTH;
     const legWidth = config.LEG_WIDTH, legHeight = config.LEG_HEIGHT, legDepth = config.LEG_DEPTH;
 
-    const torsoGeometry = new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const torsoMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.TORSO_ROUGHNESS });
+    const torsoGeometry = getGeometry('bear-torso', () => new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const torsoMaterial = getMaterial(`bear-torso-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.TORSO_ROUGHNESS }));
     const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
     torso.castShadow = true;
     const torsoY = legHeight / 2 + torsoHeight / 2 + config.TORSO_Y_OFFSET_FACTOR;
     torso.position.y = torsoY;
     group.add(torso);
 
-    const headGeometry = new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.HEAD_ROUGHNESS });
+    const headGeometry = getGeometry('bear-head', () => new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const headMaterial = getMaterial(`bear-head-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.HEAD_ROUGHNESS }));
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.castShadow = true;
     head.position.set(0, torsoY + torsoHeight * config.HEAD_Y_OFFSET_FACTOR, -torsoDepth / 2 - headDepth * config.HEAD_Z_OFFSET_FACTOR);
@@ -46,8 +47,8 @@ export function createBearModel(properties) {
     const legXOffset = torsoWidth / 2 - legWidth * config.LEG_X_OFFSET_FACTOR;
     const frontLegZ = -torsoDepth / 2 + legDepth * config.FRONT_LEG_Z_FACTOR;
     const backLegZ = torsoDepth / 2 - legDepth * config.BACK_LEG_Z_FACTOR;
-    const legGeometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const legMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.LEG_ROUGHNESS });
+    const legGeometry = getGeometry('bear-leg', () => new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const legMaterial = getMaterial(`bear-leg-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.LEG_ROUGHNESS }));
 
     const frontLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
     frontLeftLeg.castShadow = true;
@@ -84,16 +85,15 @@ export function createSquirrelModel(properties) {
     const headWidth = config.HEAD_WIDTH, headHeight = config.HEAD_HEIGHT, headDepth = config.HEAD_DEPTH;
     const legWidth = config.LEG_WIDTH, legHeight = config.LEG_HEIGHT, legDepth = config.LEG_DEPTH;
 
-    const torsoGeometry = new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const torsoMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
+    const torsoGeometry = getGeometry('squirrel-torso', () => new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const torsoMaterial = getMaterial(`squirrel-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS }));
     const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
     torso.castShadow = true;
     torso.position.y = config.TORSO_Y_POS;
     group.add(torso);
 
-    const headGeometry = new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
+    const headGeometry = getGeometry('squirrel-head', () => new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const head = new THREE.Mesh(headGeometry, torsoMaterial); // Reuse material
     head.castShadow = true;
     head.position.set(0, torso.position.y + config.HEAD_Y_OFFSET, config.HEAD_Z_OFFSET);
     group.add(head);
@@ -106,22 +106,21 @@ export function createSquirrelModel(properties) {
     group.add(ears);
 
     const legY = config.LEG_Y_POS;
-    const legGeometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const legMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
+    const legGeometry = getGeometry('squirrel-leg', () => new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
 
-    const frontLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const frontLeftLeg = new THREE.Mesh(legGeometry, torsoMaterial); // Reuse material
     frontLeftLeg.castShadow = true;
     frontLeftLeg.position.set(-torsoWidth / 2 + config.LEG_X_OFFSET_FACTOR, legY, -torsoDepth / 2 + config.FRONT_LEG_Z_OFFSET_FACTOR);
     group.add(frontLeftLeg);
-    const frontRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const frontRightLeg = new THREE.Mesh(legGeometry, torsoMaterial); // Reuse material
     frontRightLeg.castShadow = true;
     frontRightLeg.position.set(torsoWidth / 2 - config.LEG_X_OFFSET_FACTOR, legY, -torsoDepth / 2 + config.FRONT_LEG_Z_OFFSET_FACTOR);
     group.add(frontRightLeg);
-    const backLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const backLeftLeg = new THREE.Mesh(legGeometry, torsoMaterial); // Reuse material
     backLeftLeg.castShadow = true;
     backLeftLeg.position.set(-torsoWidth / 2 + config.LEG_X_OFFSET_FACTOR, legY, torsoDepth / 2 - config.BACK_LEG_Z_OFFSET_FACTOR);
     group.add(backLeftLeg);
-    const backRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const backRightLeg = new THREE.Mesh(legGeometry, torsoMaterial); // Reuse material
     backRightLeg.castShadow = true;
     backRightLeg.position.set(torsoWidth / 2 - config.LEG_X_OFFSET_FACTOR, legY, torsoDepth / 2 - config.BACK_LEG_Z_OFFSET_FACTOR);
     group.add(backRightLeg);
@@ -163,16 +162,16 @@ export function createDeerModel(properties) {
     const neckWidth = config.NECK_WIDTH, neckHeight = config.NECK_HEIGHT, neckDepth = config.NECK_DEPTH;
     const legWidth = config.LEG_WIDTH, legHeight = config.LEG_HEIGHT, legDepth = config.LEG_DEPTH;
 
-    const torsoGeometry = new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const torsoMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+    const bodyMaterial = getMaterial(`deer-body-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS }));
+
+    const torsoGeometry = getGeometry('deer-torso', () => new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const torso = new THREE.Mesh(torsoGeometry, bodyMaterial);
     torso.castShadow = true;
     torso.position.y = config.TORSO_Y_POS;
     group.add(torso);
 
-    const headGeometry = new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
+    const headGeometry = getGeometry('deer-head', () => new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const head = new THREE.Mesh(headGeometry, bodyMaterial);
     head.castShadow = true;
     head.position.set(0, torso.position.y + config.HEAD_Y_OFFSET, config.HEAD_Z_OFFSET);
     group.add(head);
@@ -184,44 +183,42 @@ export function createDeerModel(properties) {
     const ears = createEars(headWidth, headHeight, head.position, color, true); // Pointy = true for deer
     group.add(ears);
 
-    const neckGeometry = new THREE.BoxGeometry(neckWidth, neckHeight, neckDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const neckMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const neck = new THREE.Mesh(neckGeometry, neckMaterial);
+    const neckGeometry = getGeometry('deer-neck', () => new THREE.BoxGeometry(neckWidth, neckHeight, neckDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const neck = new THREE.Mesh(neckGeometry, bodyMaterial);
     neck.castShadow = true;
     neck.position.set(0, torso.position.y + config.NECK_Y_OFFSET, config.NECK_Z_OFFSET);
     neck.rotation.x = config.NECK_ROTATION_X;
     group.add(neck);
 
     const legY = config.LEG_Y_POS;
-    const legGeometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const legMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
+    const legGeometry = getGeometry('deer-leg', () => new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
 
-    const frontLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const frontLeftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     frontLeftLeg.castShadow = true;
     frontLeftLeg.position.set(-config.LEG_X_OFFSET, legY, config.FRONT_LEG_Z);
     group.add(frontLeftLeg);
-    const frontRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const frontRightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     frontRightLeg.castShadow = true;
     frontRightLeg.position.set(config.LEG_X_OFFSET, legY, config.FRONT_LEG_Z);
     group.add(frontRightLeg);
-    const backLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const backLeftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     backLeftLeg.castShadow = true;
     backLeftLeg.position.set(-config.LEG_X_OFFSET, legY, config.BACK_LEG_Z);
     group.add(backLeftLeg);
-    const backRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const backRightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     backRightLeg.castShadow = true;
     backRightLeg.position.set(config.LEG_X_OFFSET, legY, config.BACK_LEG_Z);
     group.add(backRightLeg);
 
     const antlerColor = config.ANTLER_COLOR;
     const leftAntlerGroup = new THREE.Group();
-    const mainBranchGeo = new THREE.CylinderGeometry(config.ANTLER_MAIN_RADIUS_BOTTOM, config.ANTLER_MAIN_RADIUS_TOP, config.ANTLER_MAIN_HEIGHT, config.ANTLER_MAIN_SEGMENTS);
-    const antlerMaterial = new THREE.MeshStandardMaterial({ color: antlerColor, roughness: config.ANTLER_ROUGHNESS });
+    const mainBranchGeo = getGeometry('deer-antler-main', () => new THREE.CylinderGeometry(config.ANTLER_MAIN_RADIUS_BOTTOM, config.ANTLER_MAIN_RADIUS_TOP, config.ANTLER_MAIN_HEIGHT, config.ANTLER_MAIN_SEGMENTS));
+    const antlerMaterial = getMaterial(`deer-antler-mat-${antlerColor}`, () => new THREE.MeshStandardMaterial({ color: antlerColor, roughness: config.ANTLER_ROUGHNESS }));
     const leftMainBranch = new THREE.Mesh(mainBranchGeo, antlerMaterial);
     leftMainBranch.position.set(0, config.ANTLER_MAIN_Y_OFFSET, 0);
     leftMainBranch.rotation.z = config.ANTLER_MAIN_ROTATION_Z;
     leftAntlerGroup.add(leftMainBranch);
-    const secondaryBranchGeo = new THREE.CylinderGeometry(config.ANTLER_SECONDARY_RADIUS_BOTTOM, config.ANTLER_SECONDARY_RADIUS_TOP, config.ANTLER_SECONDARY_HEIGHT, config.ANTLER_SECONDARY_SEGMENTS);
+    const secondaryBranchGeo = getGeometry('deer-antler-secondary', () => new THREE.CylinderGeometry(config.ANTLER_SECONDARY_RADIUS_BOTTOM, config.ANTLER_SECONDARY_RADIUS_TOP, config.ANTLER_SECONDARY_HEIGHT, config.ANTLER_SECONDARY_SEGMENTS));
     const leftBranch1 = new THREE.Mesh(secondaryBranchGeo, antlerMaterial);
     leftBranch1.position.set(config.ANTLER_BRANCH1_X_OFFSET, config.ANTLER_BRANCH1_Y_OFFSET, 0);
     leftBranch1.rotation.z = config.ANTLER_BRANCH1_ROTATION_Z;
@@ -256,16 +253,16 @@ export function createCoyoteModel(properties) {
     const neckWidth = config.NECK_WIDTH, neckHeight = config.NECK_HEIGHT, neckDepth = config.NECK_DEPTH;
     const legWidth = config.LEG_WIDTH, legHeight = config.LEG_HEIGHT, legDepth = config.LEG_DEPTH;
 
-    const torsoGeometry = new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const torsoMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+    const bodyMaterial = getMaterial(`coyote-body-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS }));
+
+    const torsoGeometry = getGeometry('coyote-torso', () => new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const torso = new THREE.Mesh(torsoGeometry, bodyMaterial);
     torso.castShadow = true;
     torso.position.y = config.TORSO_Y_POS;
     group.add(torso);
 
-    const headGeometry = new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
+    const headGeometry = getGeometry('coyote-head', () => new THREE.BoxGeometry(headWidth, headHeight, headDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const head = new THREE.Mesh(headGeometry, bodyMaterial);
     head.castShadow = true;
     head.position.set(0, torso.position.y + config.HEAD_Y_OFFSET, config.HEAD_Z_OFFSET);
     group.add(head);
@@ -277,31 +274,29 @@ export function createCoyoteModel(properties) {
     const ears = createEars(headWidth, headHeight, head.position, color, true); // Pointy = true for coyote
     group.add(ears);
 
-    const neckGeometry = new THREE.BoxGeometry(neckWidth, neckHeight, neckDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const neckMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const neck = new THREE.Mesh(neckGeometry, neckMaterial);
+    const neckGeometry = getGeometry('coyote-neck', () => new THREE.BoxGeometry(neckWidth, neckHeight, neckDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const neck = new THREE.Mesh(neckGeometry, bodyMaterial);
     neck.castShadow = true;
     neck.position.set(0, torso.position.y + config.NECK_Y_OFFSET, config.NECK_Z_OFFSET);
     neck.rotation.x = config.NECK_ROTATION_X;
     group.add(neck);
 
     const legY = config.LEG_Y_POS;
-    const legGeometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const legMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
+    const legGeometry = getGeometry('coyote-leg', () => new THREE.BoxGeometry(legWidth, legHeight, legDepth, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
 
-    const frontLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const frontLeftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     frontLeftLeg.castShadow = true;
     frontLeftLeg.position.set(-config.LEG_X_OFFSET, legY, config.FRONT_LEG_Z);
     group.add(frontLeftLeg);
-    const frontRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const frontRightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     frontRightLeg.castShadow = true;
     frontRightLeg.position.set(config.LEG_X_OFFSET, legY, config.FRONT_LEG_Z);
     group.add(frontRightLeg);
-    const backLeftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const backLeftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     backLeftLeg.castShadow = true;
     backLeftLeg.position.set(-config.LEG_X_OFFSET, legY, config.BACK_LEG_Z);
     group.add(backLeftLeg);
-    const backRightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    const backRightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
     backRightLeg.castShadow = true;
     backRightLeg.position.set(config.LEG_X_OFFSET, legY, config.BACK_LEG_Z);
     group.add(backRightLeg);
@@ -339,16 +334,15 @@ export function createRattlesnakeModel(properties) {
     const config = C_MODELS.RATTLESNAKE;
     const color = properties?.color || config.DEFAULT_COLOR;
 
-    const segmentMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.SEGMENT_ROUGHNESS });
-    const headGeo = new THREE.ConeGeometry(config.HEAD_RADIUS, config.HEAD_HEIGHT, config.HEAD_SEGMENTS);
-    const headMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.HEAD_ROUGHNESS });
+    const headGeo = getGeometry('rattlesnake-head', () => new THREE.ConeGeometry(config.HEAD_RADIUS, config.HEAD_HEIGHT, config.HEAD_SEGMENTS));
+    const headMat = getMaterial(`rattlesnake-head-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.HEAD_ROUGHNESS }));
     const head = new THREE.Mesh(headGeo, headMat);
     head.rotation.x = config.HEAD_ROTATION_X;
     head.position.set(0, config.HEAD_Y_POS, config.HEAD_Z_POS);
     group.add(head);
 
-    const eyeGeo = new THREE.SphereGeometry(config.EYE_RADIUS, config.EYE_SEGMENTS, config.EYE_SEGMENTS);
-    const eyeMat = new THREE.MeshStandardMaterial({ color: config.EYE_COLOR, roughness: config.EYE_ROUGHNESS, metalness: config.EYE_METALNESS });
+    const eyeGeo = getGeometry('rattlesnake-eye', () => new THREE.SphereGeometry(config.EYE_RADIUS, config.EYE_SEGMENTS, config.EYE_SEGMENTS));
+    const eyeMat = getMaterial('rattlesnake-eye-mat', () => new THREE.MeshStandardMaterial({ color: config.EYE_COLOR, roughness: config.EYE_ROUGHNESS, metalness: config.EYE_METALNESS }));
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
     leftEye.position.set(-config.EYE_X_OFFSET, config.EYE_Y_POS, config.EYE_Z_POS);
     group.add(leftEye);
@@ -362,9 +356,9 @@ export function createRattlesnakeModel(properties) {
     for (let i = 0; i < numSegments; i++) {
         const radius = config.BODY_RADIUS_START - (i * config.BODY_RADIUS_DECREMENT);
         const topRadius = radius * config.BODY_RADIUS_TOP_FACTOR; // Simplified calculation
-        const segmentGeo = new THREE.CylinderGeometry(radius, topRadius, config.BODY_SEGMENT_LENGTH, config.BODY_SEGMENTS);
+        const segmentGeo = getGeometry(`rattlesnake-segment-${i}`, () => new THREE.CylinderGeometry(radius, topRadius, config.BODY_SEGMENT_LENGTH, config.BODY_SEGMENTS));
         const segmentColor = i % 2 === 0 ? color : new THREE.Color(color).multiplyScalar(config.BODY_COLOR_MULTIPLIER).getHex();
-        const currentSegmentMat = new THREE.MeshStandardMaterial({ color: segmentColor, roughness: config.SEGMENT_ROUGHNESS });
+        const currentSegmentMat = getMaterial(`rattlesnake-segment-mat-${segmentColor}`, () => new THREE.MeshStandardMaterial({ color: segmentColor, roughness: config.SEGMENT_ROUGHNESS }));
         const segment = new THREE.Mesh(segmentGeo, currentSegmentMat);
         segment.position.copy(currentPos);
         segment.rotation.x = config.BODY_ROTATION_X;
@@ -379,10 +373,10 @@ export function createRattlesnakeModel(properties) {
     rattleBasePos.z += config.RATTLE_BASE_Z_OFFSET; // Adjust based on last segment position
     const rattleSegments = config.RATTLE_SEGMENTS;
     const rattleColor = config.RATTLE_COLOR;
-    const rattleMat = new THREE.MeshStandardMaterial({ color: rattleColor, roughness: config.RATTLE_ROUGHNESS });
+    const rattleMat = getMaterial('rattlesnake-rattle-mat', () => new THREE.MeshStandardMaterial({ color: rattleColor, roughness: config.RATTLE_ROUGHNESS }));
     for (let i = 0; i < rattleSegments; i++) {
         const rattleSize = config.RATTLE_SIZE_START - (i * config.RATTLE_SIZE_DECREMENT);
-        const rattleGeo = new THREE.SphereGeometry(rattleSize, config.RATTLE_SEGMENTS_DETAIL, config.RATTLE_SEGMENTS_DETAIL);
+        const rattleGeo = getGeometry(`rattlesnake-rattle-${i}`, () => new THREE.SphereGeometry(rattleSize, config.RATTLE_SEGMENTS_DETAIL, config.RATTLE_SEGMENTS_DETAIL));
         const rattleSegment = new THREE.Mesh(rattleGeo, rattleMat);
         rattleSegment.position.copy(rattleBasePos);
         rattleSegment.position.z -= i * config.RATTLE_Z_OFFSET_FACTOR;
@@ -403,22 +397,22 @@ export function createScorpionModel(properties) {
     const config = C_MODELS.SCORPION;
     const color = properties?.color || config.DEFAULT_COLOR;
 
-    const bodyGeo = new THREE.BoxGeometry(config.BODY_WIDTH, config.BODY_HEIGHT, config.BODY_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
+    const bodyMat = getMaterial(`scorpion-body-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS }));
+
+    const bodyGeo = getGeometry('scorpion-body', () => new THREE.BoxGeometry(config.BODY_WIDTH, config.BODY_HEIGHT, config.BODY_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.castShadow = true;
     body.position.y = config.BODY_Y_POS;
     group.add(body);
 
-    const headGeo = new THREE.BoxGeometry(config.HEAD_WIDTH, config.HEAD_HEIGHT, config.HEAD_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const headMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const head = new THREE.Mesh(headGeo, headMat);
+    const headGeo = getGeometry('scorpion-head', () => new THREE.BoxGeometry(config.HEAD_WIDTH, config.HEAD_HEIGHT, config.HEAD_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const head = new THREE.Mesh(headGeo, bodyMat);
     head.castShadow = true;
     head.position.set(0, config.HEAD_Y_POS, config.HEAD_Z_OFFSET);
     group.add(head);
 
-    const eyeGeo = new THREE.SphereGeometry(config.EYE_RADIUS, config.EYE_SEGMENTS, config.EYE_SEGMENTS);
-    const eyeMat = new THREE.MeshStandardMaterial({ color: config.EYE_COLOR, roughness: config.EYE_ROUGHNESS });
+    const eyeGeo = getGeometry('scorpion-eye', () => new THREE.SphereGeometry(config.EYE_RADIUS, config.EYE_SEGMENTS, config.EYE_SEGMENTS));
+    const eyeMat = getMaterial('scorpion-eye-mat', () => new THREE.MeshStandardMaterial({ color: config.EYE_COLOR, roughness: config.EYE_ROUGHNESS }));
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
     leftEye.position.set(-config.EYE_X_OFFSET, config.EYE_Y_POS, config.EYE_Z_OFFSET);
     group.add(leftEye);
@@ -429,11 +423,10 @@ export function createScorpionModel(properties) {
     let tailY = config.TAIL_INITIAL_Y;
     let tailZ = config.TAIL_INITIAL_Z;
     const tailSegments = config.TAIL_SEGMENTS;
-    const tailMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
     for (let i = 0; i < tailSegments; i++) {
         const radius = config.TAIL_RADIUS_START - (i * config.TAIL_RADIUS_DECREMENT);
-        const tailSegmentGeo = new THREE.CylinderGeometry(radius, radius, config.TAIL_SEGMENT_LENGTH, config.TAIL_SEGMENT_SEGMENTS);
-        const segment = new THREE.Mesh(tailSegmentGeo, tailMat);
+        const tailSegmentGeo = getGeometry(`scorpion-tail-segment-${i}`, () => new THREE.CylinderGeometry(radius, radius, config.TAIL_SEGMENT_LENGTH, config.TAIL_SEGMENT_SEGMENTS));
+        const segment = new THREE.Mesh(tailSegmentGeo, bodyMat);
         segment.rotation.x = config.TAIL_ROTATION_X;
         segment.position.set(0, tailY, tailZ);
         const curveAngle = config.TAIL_CURVE_FACTOR * (i + 1) / tailSegments;
@@ -443,25 +436,24 @@ export function createScorpionModel(properties) {
         tailZ += config.TAIL_Z_INCREMENT;
     }
 
-    const stingerGeo = new THREE.ConeGeometry(config.STINGER_RADIUS, config.STINGER_HEIGHT, config.STINGER_SEGMENTS);
-    const stingerMat = new THREE.MeshStandardMaterial({ color: config.STINGER_COLOR, roughness: config.STINGER_ROUGHNESS, metalness: config.STINGER_METALNESS });
+    const stingerGeo = getGeometry('scorpion-stinger', () => new THREE.ConeGeometry(config.STINGER_RADIUS, config.STINGER_HEIGHT, config.STINGER_SEGMENTS));
+    const stingerMat = getMaterial('scorpion-stinger-mat', () => new THREE.MeshStandardMaterial({ color: config.STINGER_COLOR, roughness: config.STINGER_ROUGHNESS, metalness: config.STINGER_METALNESS }));
     const stinger = new THREE.Mesh(stingerGeo, stingerMat);
     stinger.position.set(0, tailY, tailZ);
     stinger.rotation.x = config.STINGER_ROTATION_X;
     group.add(stinger);
 
-    const clawBaseGeo = new THREE.BoxGeometry(config.CLAW_BASE_WIDTH, config.CLAW_BASE_HEIGHT, config.CLAW_BASE_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const clawMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
-    const pincerGeo = new THREE.BoxGeometry(config.PINCER_WIDTH, config.PINCER_HEIGHT, config.PINCER_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
+    const clawBaseGeo = getGeometry('scorpion-claw-base', () => new THREE.BoxGeometry(config.CLAW_BASE_WIDTH, config.CLAW_BASE_HEIGHT, config.CLAW_BASE_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
+    const pincerGeo = getGeometry('scorpion-pincer', () => new THREE.BoxGeometry(config.PINCER_WIDTH, config.PINCER_HEIGHT, config.PINCER_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
 
     const leftClawGroup = new THREE.Group();
-    const leftClawBase = new THREE.Mesh(clawBaseGeo, clawMat);
+    const leftClawBase = new THREE.Mesh(clawBaseGeo, bodyMat);
     leftClawBase.position.set(0, 0, config.CLAW_BASE_Z_OFFSET);
     leftClawGroup.add(leftClawBase);
-    const leftPincerUpper = new THREE.Mesh(pincerGeo, clawMat);
+    const leftPincerUpper = new THREE.Mesh(pincerGeo, bodyMat);
     leftPincerUpper.position.set(0, config.PINCER_UPPER_Y_OFFSET, config.PINCER_Z_OFFSET);
     leftClawGroup.add(leftPincerUpper);
-    const leftPincerLower = new THREE.Mesh(pincerGeo, clawMat);
+    const leftPincerLower = new THREE.Mesh(pincerGeo, bodyMat);
     leftPincerLower.position.set(0, config.PINCER_LOWER_Y_OFFSET, config.PINCER_Z_OFFSET);
     leftClawGroup.add(leftPincerLower);
     leftClawGroup.position.set(config.CLAW_GROUP_X_OFFSET, config.CLAW_GROUP_Y_POS, config.CLAW_GROUP_Z_OFFSET);
@@ -473,15 +465,14 @@ export function createScorpionModel(properties) {
     rightClawGroup.rotation.y = config.CLAW_ROTATION_Y;
     group.add(rightClawGroup);
 
-    const legGeo = new THREE.BoxGeometry(config.LEG_WIDTH, config.LEG_HEIGHT, config.LEG_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL);
-    const legMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.MATERIAL_ROUGHNESS });
+    const legGeo = getGeometry('scorpion-leg', () => new THREE.BoxGeometry(config.LEG_WIDTH, config.LEG_HEIGHT, config.LEG_DEPTH, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL, config.GEOMETRY_DETAIL));
     const legPositions = config.LEG_POSITIONS;
-    legPositions.forEach(pos => {
-        const leftLeg = new THREE.Mesh(legGeo, legMat);
+    legPositions.forEach((pos, i) => {
+        const leftLeg = new THREE.Mesh(legGeo, bodyMat);
         leftLeg.position.set(pos.x, config.LEG_Y_POS, pos.z);
         leftLeg.rotation.z = config.LEG_ROTATION_Z;
         group.add(leftLeg);
-        const rightLeg = new THREE.Mesh(legGeo, legMat);
+        const rightLeg = new THREE.Mesh(legGeo, bodyMat);
         rightLeg.position.set(-pos.x, config.LEG_Y_POS, pos.z);
         rightLeg.rotation.z = -config.LEG_ROTATION_Z;
         group.add(rightLeg);
@@ -501,22 +492,25 @@ export function createBuzzardModel(properties) {
     const config = C_MODELS.BUZZARD;
     const color = config.BODY_COLOR; // Use config color
 
-    const bodyGeo = new THREE.SphereGeometry(config.BODY_RADIUS, config.BODY_SEGMENTS_W, config.BODY_SEGMENTS_H);
-    bodyGeo.scale(1, config.BODY_SCALE_Y, config.BODY_SCALE_Z);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.BODY_ROUGHNESS });
+    const bodyGeo = getGeometry('buzzard-body', () => {
+        const geom = new THREE.SphereGeometry(config.BODY_RADIUS, config.BODY_SEGMENTS_W, config.BODY_SEGMENTS_H);
+        geom.scale(1, config.BODY_SCALE_Y, config.BODY_SCALE_Z);
+        return geom;
+    });
+    const bodyMat = getMaterial(`buzzard-body-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.BODY_ROUGHNESS }));
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.castShadow = true;
     group.add(body);
 
-    const headGeo = new THREE.SphereGeometry(config.HEAD_RADIUS, config.HEAD_SEGMENTS_W, config.HEAD_SEGMENTS_H);
-    const headMat = new THREE.MeshStandardMaterial({ color: config.HEAD_COLOR, roughness: config.HEAD_ROUGHNESS });
+    const headGeo = getGeometry('buzzard-head', () => new THREE.SphereGeometry(config.HEAD_RADIUS, config.HEAD_SEGMENTS_W, config.HEAD_SEGMENTS_H));
+    const headMat = getMaterial('buzzard-head-mat', () => new THREE.MeshStandardMaterial({ color: config.HEAD_COLOR, roughness: config.HEAD_ROUGHNESS }));
     const head = new THREE.Mesh(headGeo, headMat);
     head.castShadow = true;
     head.position.set(0, config.HEAD_Y_OFFSET, config.HEAD_Z_OFFSET);
     group.add(head);
 
-    const eyeGeo = new THREE.SphereGeometry(config.EYE_RADIUS, config.EYE_SEGMENTS, config.EYE_SEGMENTS);
-    const eyeMat = new THREE.MeshStandardMaterial({ color: config.EYE_COLOR, roughness: config.EYE_ROUGHNESS, metalness: config.EYE_METALNESS });
+    const eyeGeo = getGeometry('buzzard-eye', () => new THREE.SphereGeometry(config.EYE_RADIUS, config.EYE_SEGMENTS, config.EYE_SEGMENTS));
+    const eyeMat = getMaterial('buzzard-eye-mat', () => new THREE.MeshStandardMaterial({ color: config.EYE_COLOR, roughness: config.EYE_ROUGHNESS, metalness: config.EYE_METALNESS }));
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
     leftEye.position.set(-config.EYE_X_OFFSET, config.EYE_Y_POS, config.EYE_Z_OFFSET);
     group.add(leftEye);
@@ -524,8 +518,8 @@ export function createBuzzardModel(properties) {
     rightEye.position.set(config.EYE_X_OFFSET, config.EYE_Y_POS, config.EYE_Z_OFFSET);
     group.add(rightEye);
 
-    const beakGeo = new THREE.ConeGeometry(config.BEAK_RADIUS, config.BEAK_HEIGHT, config.BEAK_SEGMENTS);
-    const beakMat = new THREE.MeshStandardMaterial({ color: config.BEAK_COLOR, roughness: config.BEAK_ROUGHNESS });
+    const beakGeo = getGeometry('buzzard-beak', () => new THREE.ConeGeometry(config.BEAK_RADIUS, config.BEAK_HEIGHT, config.BEAK_SEGMENTS));
+    const beakMat = getMaterial('buzzard-beak-mat', () => new THREE.MeshStandardMaterial({ color: config.BEAK_COLOR, roughness: config.BEAK_ROUGHNESS }));
     const beak = new THREE.Mesh(beakGeo, beakMat);
     beak.castShadow = true;
     beak.rotation.x = config.BEAK_ROTATION_X;
@@ -537,10 +531,10 @@ export function createBuzzardModel(properties) {
     const wingSegments = config.WING_SEGMENTS;
     const wingLength = config.WING_LENGTH;
     const segmentLength = wingLength / wingSegments;
-    const segmentMat = new THREE.MeshStandardMaterial({ color: wingColor, roughness: config.WING_ROUGHNESS });
+    const segmentMat = getMaterial(`buzzard-wing-mat-${wingColor}`, () => new THREE.MeshStandardMaterial({ color: wingColor, roughness: config.WING_ROUGHNESS }));
     for (let i = 0; i < wingSegments; i++) {
         const width = config.WING_SEGMENT_WIDTH_FACTOR * (1 - i * config.WING_SEGMENT_WIDTH_REDUCTION);
-        const segmentGeo = new THREE.BoxGeometry(segmentLength, config.WING_SEGMENT_HEIGHT, width, config.GEOMETRY_DETAIL, 1, config.GEOMETRY_DETAIL);
+        const segmentGeo = getGeometry(`buzzard-wing-segment-${i}`, () => new THREE.BoxGeometry(segmentLength, config.WING_SEGMENT_HEIGHT, width, config.GEOMETRY_DETAIL, 1, config.GEOMETRY_DETAIL));
         const segment = new THREE.Mesh(segmentGeo, segmentMat);
         segment.castShadow = true;
         segment.position.set(-segmentLength/2 - i*segmentLength, 0, 0);
@@ -548,8 +542,8 @@ export function createBuzzardModel(properties) {
         leftWingGroup.add(segment);
     }
 
-    const featherGeo = new THREE.BoxGeometry(config.FEATHER_WIDTH, config.FEATHER_HEIGHT, config.FEATHER_DEPTH, 1, 1, 1);
-    const featherMat = new THREE.MeshStandardMaterial({ color: config.FEATHER_COLOR, roughness: config.FEATHER_ROUGHNESS });
+    const featherGeo = getGeometry('buzzard-feather', () => new THREE.BoxGeometry(config.FEATHER_WIDTH, config.FEATHER_HEIGHT, config.FEATHER_DEPTH, 1, 1, 1));
+    const featherMat = getMaterial('buzzard-feather-mat', () => new THREE.MeshStandardMaterial({ color: config.FEATHER_COLOR, roughness: config.FEATHER_ROUGHNESS }));
     for (let i = 0; i < config.FEATHER_COUNT; i++) {
         const feather = new THREE.Mesh(featherGeo, featherMat);
         feather.castShadow = true;
@@ -564,8 +558,8 @@ export function createBuzzardModel(properties) {
     rightWingGroup.scale.x = -1;
     group.add(rightWingGroup);
 
-    const tailGeo = new THREE.BoxGeometry(config.TAIL_WIDTH, config.TAIL_HEIGHT, config.TAIL_DEPTH, config.GEOMETRY_DETAIL, 1, config.GEOMETRY_DETAIL);
-    const tailMat = new THREE.MeshStandardMaterial({ color: color, roughness: config.TAIL_ROUGHNESS });
+    const tailGeo = getGeometry('buzzard-tail', () => new THREE.BoxGeometry(config.TAIL_WIDTH, config.TAIL_HEIGHT, config.TAIL_DEPTH, config.GEOMETRY_DETAIL, 1, config.GEOMETRY_DETAIL));
+    const tailMat = getMaterial(`buzzard-tail-mat-${color}`, () => new THREE.MeshStandardMaterial({ color: color, roughness: config.TAIL_ROUGHNESS }));
     const tail = new THREE.Mesh(tailGeo, tailMat);
     tail.castShadow = true;
     tail.position.set(0, config.TAIL_Y_POS, config.TAIL_Z_POS); // Corrected: Y should likely be 0
