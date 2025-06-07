@@ -1,6 +1,7 @@
 // js/utils/performanceManager.js
 
 import { createLogger, LogLevel } from './logger.js'; // Import LogLevel as well
+import eventBus from '../core/eventBus.js';
 
 const logger = createLogger('PerformanceManager');
 
@@ -77,7 +78,6 @@ class PerformanceManager {
         this.adaptiveQualityThreshold = 5; // FPS difference to trigger quality change
         this.adaptiveQualityCooldown = 5000; // ms between adaptive quality changes
         this.lastQualityChange = 0;
-        this.onSettingsChanged = null; // Callback for when settings change
         this._resizeListenerAdded = false; // Flag to track if resize listener is added
         this._resizeTimeout = null; // For debouncing resize events
     }
@@ -293,9 +293,7 @@ class PerformanceManager {
         this.settings = { ...qualitySettings[quality] };
 
         // Notify listeners
-        if (this.onSettingsChanged) {
-            this.onSettingsChanged(this.settings);
-        }
+        eventBus.emit('performanceSettingsChanged', this.settings);
     }
 
     /**
@@ -319,9 +317,7 @@ class PerformanceManager {
             this.currentQuality = 'custom';
 
             // Notify listeners
-            if (this.onSettingsChanged) {
-                this.onSettingsChanged(this.settings);
-            }
+            eventBus.emit('performanceSettingsChanged', this.settings);
         }
     }
 
@@ -331,14 +327,6 @@ class PerformanceManager {
      */
     setAdaptiveQuality(enabled) {
         this.adaptiveQualityEnabled = enabled;
-    }
-
-    /**
-     * Set callback for when settings change
-     * @param {Function} callback - Callback function
-     */
-    setOnSettingsChanged(callback) {
-        this.onSettingsChanged = callback;
     }
 
     /**

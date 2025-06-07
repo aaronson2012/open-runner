@@ -1,5 +1,10 @@
 import { Game } from './game.js';
-import * as UIManager from '../managers/uiManager.js';
+import * as MenuManager from '../managers/ui/menuManager.js';
+import * as HUDManager from '../managers/ui/hudManager.js';
+import * as NotificationManager from '../managers/ui/notificationManager.js';
+import * as LoadingScreenManager from '../managers/ui/loadingScreenManager.js';
+import * as InteractionManager from '../managers/ui/interactionManager.js';
+import eventBus from './eventBus.js';
 import { isMobileDevice, updateMobileControlsVisibility } from '../utils/deviceUtils.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -7,9 +12,18 @@ const logger = createLogger('Main');
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', async () => {
+    logger.debug("END-TO-END TEST: DOMContentLoaded event fired.");
     logger.info("DOM fully loaded and parsed");
 
     try {
+        // Initialize all UI managers
+        MenuManager.init();
+        HUDManager.init();
+        NotificationManager.init();
+        LoadingScreenManager.init();
+        InteractionManager.init();
+        logger.info("All UI managers initialized.");
+
         const mobileControls = document.getElementById('mobileControls');
         if (mobileControls) {
             updateMobileControlsVisibility();
@@ -18,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             logger.warn('Mobile controls element not found in the DOM');
         }
     } catch (error) {
-        logger.error('Error setting up mobile controls:', error);
+        logger.error('Error setting up UI managers or mobile controls:', error);
     }
 
     try {
@@ -27,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const errorMsg = "FATAL: Canvas element #gameCanvas not found!";
             logger.error(errorMsg);
             try {
-                UIManager.displayError(new Error(errorMsg));
+                eventBus.emit('errorOccurred', errorMsg);
             } catch (uiError) {
                 logger.error("Could not display error via UIManager:", uiError);
                 alert(errorMsg);
@@ -38,10 +52,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         logger.info("Creating game instance");
         const game = new Game(canvas);
         
-        // Expose game instance globally for debugging
-        window.game = game;
 
-        logger.info("Initializing game...");
+        logger.info("Requesting user interaction before initializing the game...");
+        await InteractionManager.requestInteraction();
+        
+        logger.info("User interaction received, proceeding with game initialization...");
         const initialized = await game.init();
 
         if (initialized) {
@@ -50,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             logger.error("Game initialization failed. See previous errors.");
             try {
-                UIManager.displayError(new Error("Game initialization failed. Please check console for details."));
+                eventBus.emit('errorOccurred', "Game initialization failed. Please check console for details.");
             } catch (uiError) {
                 logger.error("Could not display error via UIManager:", uiError);
                 alert("Game initialization failed. Please check console for details.");
@@ -59,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         logger.error("Error during game initialization or start:", error);
         try {
-            UIManager.displayError(error);
+            eventBus.emit('errorOccurred', error.message);
         } catch (uiError) {
             logger.error("Could not display error via UIManager:", uiError);
             alert(`An error occurred: ${error.message}`);

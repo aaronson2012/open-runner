@@ -3,7 +3,7 @@ import { createLogger, LogLevel } from '../utils/logger.js';
 import cameraManager from '../managers/cameraManager.js';
 import { getPlayerManager } from '../managers/playerManager.js';
 
-const logger = createLogger('GameplayUpdater', LogLevel.WARN);
+const logger = createLogger('GameplayUpdater', LogLevel.INFO);
 
 /**
  * Updates all game logic relevant to the PLAYING state.
@@ -37,6 +37,9 @@ export function updateGameplay(dependencies, deltaTime, elapsedTime) {
         return;
     }
 
+    const playerManager = getPlayerManager();
+    const currentPowerup = playerManager ? playerManager.getCurrentPowerup() : player.powerup;
+
     if (player.model) {
         playerController.updatePlayer(player, deltaTime, playerAnimationTime, chunkManager, null);
     } else {
@@ -45,17 +48,10 @@ export function updateGameplay(dependencies, deltaTime, elapsedTime) {
 
     if (chunkManager && player.model) {
         chunkManager.update(player.model.position);
-        
-        // Get current powerup from PlayerManager
-        const playerManager = getPlayerManager();
-        const currentPowerup = playerManager ? playerManager.getCurrentPowerup() : player.powerup;
-        
         chunkManager.updateCollectibles(deltaTime, elapsedTime, player.model.position, currentPowerup);
         chunkManager.updateTumbleweeds(deltaTime, elapsedTime, player.model.position);
     }
     if (enemyManager && player.model) {
-        const playerManager = getPlayerManager();
-        const currentPowerup = playerManager ? playerManager.getCurrentPowerup() : player.powerup;
         enemyManager.update(player.model.position, currentPowerup, deltaTime, elapsedTime);
     }
     if (particleManager && player.model) {

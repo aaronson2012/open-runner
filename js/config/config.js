@@ -3,7 +3,7 @@
 import configManager from '../utils/configManager.js';
 import { createLogger, setGlobalLogLevel, LogLevel } from '../utils/logger.js';
 import performanceManager from '../utils/performanceManager.js';
-
+import eventBus from '../core/eventBus.js';
 
 import { worldConfig } from './world.js';
 import { terrainConfig } from './terrain.js';
@@ -115,8 +115,8 @@ export function updateConfig(section, updates) {
     return configManager.updateConfig(section, updates);
 }
 
-// Set up performance manager callback to update config when settings change
-performanceManager.setOnSettingsChanged((settings) => {
+// Listen for performance settings changes
+eventBus.subscribe('performanceSettingsChanged', (settings) => {
     logger.debug('Updating configuration based on performance settings change...');
     // Update terrain settings
     updateConfig(SECTIONS.TERRAIN, {

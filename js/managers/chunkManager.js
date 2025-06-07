@@ -1,12 +1,12 @@
 // js/managers/chunkManager.js
 import * as THREE from 'three';
-// import * as UIManager from './uiManager.js'; // No longer needed directly
 import { createTerrainChunk } from '../rendering/terrainGenerator.js';
 import { generateObjectsForChunk } from '../generators/objectGenerator.js'; // Still needed for loadChunk
 import { createLogger } from '../utils/logger.js';
 import { EnemyManager } from './enemyManager.js'; // Needed for constructor check & passing
 import objectPoolManager from './objectPoolManager.js'; // Needed for clearAllChunks
 import { worldConfig } from '../config/world.js';
+import { terrainConfig } from '../config/terrain.js';
 import { ChunkContentManager } from './chunkContentManager.js'; // Import the new manager
 import { performanceManager } from '../config/config.js'; // For performance settings
 import performanceUtils from '../utils/performanceUtils.js'; // For frustum culling
@@ -30,6 +30,7 @@ export class ChunkManager {
         this.loadedChunks = new Map(); // Stores { terrainMesh, objects: objectDataArray, contentManagerData: { ... } }
         this.lastCameraChunkX = null;
         this.lastCameraChunkZ = null;
+        this.lastPlayerPosition = new THREE.Vector3();
 
         // Instantiate the content manager, passing dependencies
         this.contentManager = new ChunkContentManager({
@@ -95,6 +96,7 @@ export class ChunkManager {
 
     // Main update function, called every frame - determines which chunks to load/unload
     update(playerPosition) {
+        this.lastPlayerPosition.copy(playerPosition);
         const { chunkX: currentChunkX, chunkZ: currentChunkZ } = this.getPositionChunkCoords(playerPosition);
 
         if (currentChunkX === null || currentChunkZ === null) {
@@ -169,7 +171,9 @@ export class ChunkManager {
     async loadChunk(chunkX, chunkZ) {
         const key = `${chunkX},${chunkZ}`;
         if (this.loadedChunks.has(key)) {
-            logger.warn(`Attempted to load chunk ${key} which is already loaded.`);
+            // This can happen if a chunk is queued for loading but the load operation
+            // hasn't completed yet. It's not necessarily an error.
+            logger.debug(`Attempted to load chunk ${key} which is already being loaded or is loaded.`);
             return;
         }
         try {
@@ -181,7 +185,14 @@ export class ChunkManager {
             const perfSettings = performanceManager.getSettings();
 
             // 1. Create Terrain
-            const terrainMesh = createTerrainChunk(chunkX, chunkZ, this.levelConfig);
+            const lod = this.getChunkLOD(chunkX, chunkZ);
+            const neighborLODs = {
+                north: this.getChunkLOD(chunkX, chunkZ - 1),
+                south: this.getChunkLOD(chunkX, chunkZ + 1),
+                east: this.getChunkLOD(chunkX + 1, chunkZ),
+                west: this.getChunkLOD(chunkX - 1, chunkZ),
+            };
+            const terrainMesh = createTerrainChunk(chunkX, chunkZ, this.levelConfig, lod, neighborLODs);
             
             // Apply performance optimizations to terrain
             if (perfSettings.useStaticObjects) {
@@ -240,7 +251,7 @@ export class ChunkManager {
 
         } catch (error) {
             const errorMsg = `Error loading chunk ${key}: ${error.message}`;
-            // UIManager.displayError(new Error(`[ChunkManager] ${errorMsg}`)); // UIManager removed
+            eventBus.emit('errorOccurred', `[ChunkManager] ${errorMsg}`);
             logger.error(errorMsg, error);
         }
     }
@@ -287,6 +298,28 @@ export class ChunkManager {
         }
         return nearbyMeshes;
     } // <-- Added missing closing brace
+
+    getChunkLOD(chunkX, chunkZ) {
+        const { chunkX: playerChunkX, chunkZ: playerChunkZ } = this.getPositionChunkCoords(this.lastPlayerPosition);
+
+        if (playerChunkX === null || playerChunkZ === null) {
+            logger.warn(`[ChunkManager] Invalid player position for LOD calculation. Defaulting to highest detail.`);
+            return terrainConfig.LOD_LEVELS[0].segments;
+        }
+
+        const dx = chunkX - playerChunkX;
+        const dz = chunkZ - playerChunkZ;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+
+        for (const level of terrainConfig.LOD_LEVELS) {
+            if (distance <= level.distance) {
+                return level.segments;
+            }
+        }
+
+        // If beyond all defined levels, return the lowest detail
+        return terrainConfig.LOD_LEVELS[terrainConfig.LOD_LEVELS.length - 1].segments;
+    }
     /**
      * Loads the initial set of chunks around the starting position.
      * @param {Function} [progressCallback] - Optional callback for loading progress (loaded, total).

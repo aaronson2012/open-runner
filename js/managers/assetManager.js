@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import * as UIManager from './uiManager.js';
+import eventBus from '../core/eventBus.js';
 import { materialsConfig } from '../config/materials.js';
 import { fallbackGeometriesConfig } from '../config/fallbackGeometries.js';
 import { modelsConfig } from '../config/models.js';
@@ -24,7 +24,7 @@ export function initLevelAssets(levelConfig) {
 
     if (!levelConfig) {
         const errorMsg = "Cannot initialize assets without levelConfig!";
-        UIManager.displayError(new Error(`[AssetManager] ${errorMsg}`));
+        eventBus.emit('errorOccurred', `[AssetManager] ${errorMsg}`);
         logger.error(errorMsg);
         return;
     }
@@ -57,7 +57,7 @@ export function initLevelAssets(levelConfig) {
         });
     } catch (error) {
         logger.error("Error creating magnet model:", error);
-        UIManager.displayError(new Error("[AssetManager] Error creating magnet model."));
+        eventBus.emit('errorOccurred', "[AssetManager] Error creating magnet model.");
     }
 
     // --- Doubler --- (Uses level config OR model defaults and ModelFactory)
@@ -77,7 +77,7 @@ export function initLevelAssets(levelConfig) {
       });
     } catch (error) {
       logger.error("Error creating doubler model:", error);
-      UIManager.displayError(new Error("[AssetManager] Error creating doubler model."));
+      eventBus.emit('errorOccurred', "[AssetManager] Error creating doubler model.");
     }
 
     // --- Invisibility ---
@@ -99,7 +99,7 @@ export function initLevelAssets(levelConfig) {
       });
     } catch (error) {
       logger.error("Error creating invisibility model:", error);
-      UIManager.displayError(new Error("[AssetManager] Error creating invisibility model."));
+      eventBus.emit('errorOccurred', "[AssetManager] Error creating invisibility model.");
     }
 
     // --- Obstacles Materials ---
@@ -146,8 +146,16 @@ export function initLevelAssets(levelConfig) {
                  if (!levelAssets.wagonWheelGeo) levelAssets.wagonWheelGeo = new THREE.TorusGeometry(fallbackGeometriesConfig.WAGON_WHEEL.RADIUS, fallbackGeometriesConfig.WAGON_WHEEL.TUBE, fallbackGeometriesConfig.WAGON_WHEEL.RAD_SEG, fallbackGeometriesConfig.WAGON_WHEEL.TUB_SEG);
                  break;
             case 'tumbleweed':
-                 if (!levelAssets.tumbleweedGeo) levelAssets.tumbleweedGeo = new THREE.IcosahedronGeometry(fallbackGeometriesConfig.TUMBLEWEED.RADIUS, fallbackGeometriesConfig.TUMBLEWEED.DETAIL);
-                 break;
+               if (!levelAssets.tumbleweedGeo) {
+                   const tumbleweedModel = ModelFactory.createTumbleweedModel();
+                   // Since the model is a group of meshes, we can't assign it directly to a 'Geo' key.
+                   // Instead, we'll store the whole group and the object spawner will handle it.
+                   // For now, let's just create it. The spawner will need to be updated to use this.
+                   // To avoid breaking the existing system, we will create a dummy geometry for now.
+                   levelAssets.tumbleweedGeo = new THREE.BufferGeometry(); // Dummy geo
+                   // The actual model will be created in the object spawner.
+               }
+               break;
             case 'tree_pine':
             case 'cactus_saguaro':
             case 'railroad_sign':

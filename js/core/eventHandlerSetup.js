@@ -117,7 +117,7 @@ export function setupEventHandlers(dependencies) {
         // Reset powerups through PlayerManager
         playerManager.resetPowerups();
 
-        eventBus.emit('gameOverInfo', {
+        eventBus.emit('gameOver', {
             score: currentScore,
             highScore: highScore,
             levelId: currentLevelId,

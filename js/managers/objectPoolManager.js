@@ -12,7 +12,8 @@ export class ObjectPoolManager { // Add named export
         this.pools = {
             collectibles: [],  // Pool of inactive collectible meshes (coins, magnets)
             obstacles: [],     // Pool of inactive obstacle meshes (rocks, trees, cacti)
-            tumbleweeds: []    // Pool of inactive tumbleweed instances (GameObjects)
+            tumbleweeds: [],    // Pool of inactive tumbleweed instances (GameObjects)
+            enemies: []        // Pool of inactive enemy instances
         };
         logger.info("ObjectPoolManager instantiated");
     }
@@ -104,65 +105,9 @@ export class ObjectPoolManager { // Add named export
             logger.debug("Maintained horizontal rotation for log_fallen object in pool");
         }
             
-        // Special validation and preparation for tree_pine objects
-        if (objectType === 'tree_pine') {
-            let hasTrunk = false, hasFoliage = false;
-            let trunkMesh = null, foliageMesh = null;
-            
-            // Get the correct names from the config
-            const trunkName = C_MODELS.TREE_PINE.TRUNK_NAME;
-            const foliageName = C_MODELS.TREE_PINE.FOLIAGE_NAME;
-
-            logger.debug(`Adding tree to pool - Children count: ${object.children.length}`);
-            object.children.forEach((child, index) => {
-                logger.debug(`Tree child ${index}: name=${child.name}, type=${child.type}`);
-            });
-            
-            object.traverse((child) => {
-                if (child.name === trunkName) {
-                    hasTrunk = true;
-                    trunkMesh = child;
-                    logger.debug(`Found trunk in pooled tree: ${trunkName}`);
-                }
-                if (child.name === foliageName) {
-                    hasFoliage = true;
-                    foliageMesh = child;
-                    logger.debug(`Found foliage in pooled tree: ${foliageName}`);
-                }
-            });
-
-            if (!hasTrunk || !hasFoliage) {
-                logger.warn(`Tree missing parts when adding to pool. Creating a new tree instead of pooling.`);
-                this._disposeObject(object, poolName);
-                return; // Don't add incomplete trees to the pool
-            }
-
-            // Don't try to repair trees in the pool, just dispose incomplete ones
-            // They'll be recreated fresh when needed
-            if (!hasTrunk || !hasFoliage) {
-                logger.warn("Tree missing parts when entering the pool. Disposing it instead.");
-                return this._disposeObject(object, poolName);
-            }
-
-            // If we get here, the tree has both trunk and foliage
-            
-            // Reset the tree scale to 1 to avoid scaling issues when reused
-            object.scale.set(1, 1, 1);
-
-            // Apply default positions for the parts
-            const config = C_MODELS.TREE_PINE;
-            trunkMesh.position.set(0, config.TRUNK_HEIGHT / 2, 0);
-            foliageMesh.position.set(0, config.TRUNK_HEIGHT + config.FOLIAGE_HEIGHT / 2, 0);
-            
-            // Update stored references
-            object.userData.trunkMesh = trunkMesh;
-            object.userData.foliageMesh = foliageMesh;
-            object.userData.originalTrunkPosition = new THREE.Vector3(0, config.TRUNK_HEIGHT / 2, 0);
-            object.userData.originalFoliagePosition = new THREE.Vector3(0, config.TRUNK_HEIGHT + config.FOLIAGE_HEIGHT / 2, 0);
-
-            // Ensure the tree is marked as complete
-            object.userData.isCompleteTree = true;
-        }
+    if (objectType === 'tree_pine') {
+        this._prepareTreeForPool(object);
+    }
 
         // Hide the object but keep it in memory
         if (object.visible !== undefined) { // For THREE.Object3D based objects
@@ -211,56 +156,7 @@ export class ObjectPoolManager { // Add named export
         if (!object) return;
 
         try {
-            // Special handling for tree_pine objects to preserve their structure
-            if (object.userData?.objectType === 'tree_pine') {
-                // Check if the tree has all its parts before disposal
-                let hasTrunk = false, hasFoliage = false;
-                
-                // Get the correct names from the config
-                const trunkName = C_MODELS.TREE_PINE.TRUNK_NAME;
-                const foliageName = C_MODELS.TREE_PINE.FOLIAGE_NAME;
-                
-                object.traverse((child) => {
-                    if (child.name === trunkName) hasTrunk = true;
-                    if (child.name === foliageName) hasFoliage = true;
-                });
-
-                if (!hasTrunk || !hasFoliage) {
-                    logger.warn(`Tree missing parts during disposal. Creating a new tree instead.`);
-
-                    // If the tree is incomplete, create a new one to replace it
-                    // This ensures we don't keep broken trees in the system
-                    try {
-                        // Create a new tree to replace the broken one
-                        const newTree = createTreeMesh();
-                        // Don't return the new tree - we're disposing the old one, not replacing it
-                        // Just log that we're creating a new one for future use
-                        logger.info('Created a new tree to replace incomplete one');
-                    } catch (error) {
-                        logger.error('Failed to create replacement tree:', error);
-                    }
-                } else {
-                    // Only dispose materials and geometries, but keep the structure intact
-                    object.traverse((child) => {
-                        if (child instanceof THREE.Mesh) {
-                            // Only dispose the geometry and material, not the mesh itself
-                            child.geometry?.dispose();
-                            if (child.material) {
-                                if (Array.isArray(child.material)) {
-                                    child.material.forEach(mat => mat?.dispose());
-                                } else {
-                                    child.material.dispose();
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // Ensure the object itself is removed if it was somehow still parented
-                if(object.parent) {
-                    object.parent.remove(object);
-                }
-            } else if (poolName === 'tumbleweeds' && typeof object.dispose === 'function') {
+            if ((poolName === 'tumbleweeds' || poolName === 'enemies') && typeof object.dispose === 'function') {
                 object.dispose(); // Call GameObject dispose method if available
             } else if (object instanceof THREE.Object3D) { // Handle Meshes and Groups
                 object.traverse((child) => {
@@ -288,6 +184,51 @@ export class ObjectPoolManager { // Add named export
         }
     }
 
+
+    /**
+     * Prepares a tree object for pooling by validating, repairing, and resetting it.
+     * @param {THREE.Group} tree - The tree object.
+     * @private
+     */
+    _prepareTreeForPool(tree) {
+        const config = C_MODELS.TREE_PINE;
+        const trunkName = config.TRUNK_NAME;
+        const foliageName = config.FOLIAGE_NAME;
+
+        let trunk = tree.children.find(c => c.name === trunkName);
+        let foliage = tree.children.find(c => c.name === foliageName);
+
+        // If parts are missing, repair the tree
+        if (!trunk || !foliage) {
+            logger.warn(`Incomplete tree entering pool. Repairing...`);
+            
+            // Remove any existing incorrect parts
+            [...tree.children].forEach(child => tree.remove(child));
+
+            // Create and add new, correct parts
+            const newTrunk = new THREE.Mesh(AssetManager.getAsset('treeTrunkGeometry'), AssetManager.getAsset('treeTrunkMaterial'));
+            newTrunk.name = trunkName;
+            tree.add(newTrunk);
+
+            const newFoliage = new THREE.Mesh(AssetManager.getAsset('treeFoliageGeometry'), AssetManager.getAsset('treeFoliageMaterial'));
+            newFoliage.name = foliageName;
+            tree.add(newFoliage);
+            
+            trunk = newTrunk;
+            foliage = newFoliage;
+        }
+
+        // Reset transformations and properties
+        tree.scale.set(1, 1, 1);
+        tree.position.set(0, 0, 0);
+        tree.rotation.set(0, 0, 0);
+        
+        trunk.position.set(0, config.TRUNK_HEIGHT / 2, 0);
+        foliage.position.set(0, config.TRUNK_HEIGHT + config.FOLIAGE_HEIGHT / 2, 0);
+
+        tree.userData.isCompleteTree = true;
+        logger.debug("Prepared and validated tree for object pool.");
+    }
 
     /**
      * Gets the current sizes of all pools.

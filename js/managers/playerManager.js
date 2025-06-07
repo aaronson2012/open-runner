@@ -3,6 +3,7 @@ import eventBus from '../core/eventBus.js';
 import { createLogger } from '../utils/logger.js';
 import { gameplayConfig } from '../config/gameplay.js';
 import { playWaveFile, effectAudioMap } from './audioManager.js';
+import powerupNotificationManager from './ui/powerupNotificationManager.js';
 
 const logger = createLogger('PlayerManager');
 
@@ -25,41 +26,41 @@ class PlayerManager {
      * @private
      */
     _setupEventSubscriptions() {
-        eventBus.subscribe('powerupActivated', this.handlePowerupActivated.bind(this));
+        eventBus.subscribe('powerupCollected', this.handlePowerupCollected.bind(this));
         eventBus.subscribe('resetPowerups', this.resetPowerups.bind(this));
         logger.debug('PlayerManager event subscriptions set up');
     }
-    
+
     /**
      * Handle powerup activation
      * @param {string} powerupType - Type of powerup activated
      */
-    handlePowerupActivated(powerupType) {
+    handlePowerupCollected({ type }) {
+        const powerupType = type;
         const wasActive = this.player.powerup === powerupType;
         this.player.powerup = powerupType;
         playWaveFile(effectAudioMap['powerup']);
-        
+
         if (wasActive) {
             logger.info(`${powerupType} powerup already active, extending duration`);
             if (this.powerupTimeout) clearTimeout(this.powerupTimeout);
         } else {
             logger.info(`${powerupType} powerup started!`);
-            // Emit event for visual effect
-            eventBus.emit('applyPowerupEffect', { type: powerupType, player: this.player });
+            eventBus.emit('powerupActivated', { type: powerupType, player: this.player });
         }
-        
+
         if (this.powerupTimeout) clearTimeout(this.powerupTimeout);
-        
+
         this.powerupTimeout = setTimeout(() => {
             if (this.player.powerup === powerupType) {
                 this.player.powerup = '';
                 logger.info(`${powerupType} powerup expired!`);
-                eventBus.emit('removePowerupEffect', { type: powerupType, player: this.player });
+                eventBus.emit('powerupDeactivated', { type: powerupType, player: this.player });
             }
             this.powerupTimeout = null;
         }, gameplayConfig.POWERUP_DURATION * 1000);
     }
-    
+
     /**
      * Reset all active powerups
      */
@@ -68,10 +69,10 @@ class PlayerManager {
             const currentPowerup = this.player.powerup;
             this.player.powerup = '';
             logger.debug(`Powerup ${currentPowerup} reset`);
-            
-            eventBus.emit('removePowerupEffect', { type: currentPowerup, player: this.player });
+
+            eventBus.emit('powerupDeactivated', { type: currentPowerup, player: this.player });
         }
-        
+
         if (this.powerupTimeout) {
             clearTimeout(this.powerupTimeout);
             this.powerupTimeout = null;
@@ -106,7 +107,7 @@ class PlayerManager {
         this.resetPowerups();
         
         // Unsubscribe from events
-        eventBus.unsubscribe('powerupActivated', this.handlePowerupActivated);
+        eventBus.unsubscribe('powerupCollected', this.handlePowerupCollected);
         eventBus.unsubscribe('resetPowerups', this.resetPowerups);
         
         logger.info('PlayerManager cleaned up');

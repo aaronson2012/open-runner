@@ -1,4 +1,3 @@
-import * as UIManager from './uiManager.js';
 import eventBus from '../core/eventBus.js';
 import { GameStates } from '../core/gameStateManager.js';
 import * as LevelManager from './levelManager.js';
@@ -82,36 +81,41 @@ function setupEventListeners() {
 }
 
 /**
- * Initializes the Web Audio API AudioContext and sets up event listeners.
- * Must be called after a user interaction (e.g., button click).
+ * Initializes the Web Audio API AudioContext, sets up event listeners,
+ * and ensures the audio context is running.
+ * This must be called after a user interaction (e.g., a click).
+ * @returns {Promise<boolean>} A promise that resolves to true if audio is successfully initialized, false otherwise.
  */
-export function initAudio() {
+export async function init() {
     if (audioContext) {
-        return; // Already initialized
+        logger.info("Audio manager already initialized.");
+        return true;
     }
+
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        if (audioContext.state === 'suspended') {
+            try {
+                await audioContext.resume();
+            } catch (e) {
+                logger.warn("Could not resume audio context, possibly due to a muted tab. Continuing without audio.", e);
+            }
+        }
+
         masterGain = audioContext.createGain();
         masterGain.gain.setValueAtTime(audioConfig.INITIAL_MASTER_GAIN, audioContext.currentTime);
         masterGain.connect(audioContext.destination);
-
-
-        if (audioContext.state === 'suspended') {
-            audioContext.resume().then(() => {
-                 setupEventListeners();
-            }).catch(e => {
-                 logger.error("Failed to resume AudioContext:", e);
-                 UIManager.displayError(new Error('Failed to resume audio context. Audio might not work.'));
-            });
-        } else {
-             setupEventListeners();
-        }
-
+        
+        setupEventListeners();
+        
+        logger.info("AudioManager initialized successfully.");
+        return true;
     } catch (e) {
-
-        UIManager.displayError(new Error('Web Audio API is not supported or failed to initialize. Game audio will be disabled.'));
+        eventBus.emit('errorOccurred', 'Web Audio API is not supported. Audio will be disabled.');
         logger.error('Web Audio API initialization failed:', e);
         audioContext = null;
+        return false;
     }
 }
 
@@ -123,6 +127,11 @@ export function initAudio() {
 export async function stopMusic() {
     logger.info("[AudioManager] Stopping music");
     try {
+        if (!audioContext || !musicSource) {
+            currentMusicId = null;
+            musicSource = null;
+            return true;
+        }
     
         if (musicSource) {
             if (masterGain) {
@@ -151,6 +160,10 @@ export async function stopMusic() {
  * @returns {Promise<AudioBufferSourceNode|null>} The audio source node or null if playback failed
  */
 export async function playMusic(levelId = 'theme', volume = 0.3) {
+    if (!audioContext) {
+        logger.warn(`[AudioManager] Audio not initialized. Cannot play music for ${levelId}.`);
+        return null;
+    }
     if (currentMusicId === levelId && musicSource) {
         logger.info(`[AudioManager] ${levelId} music already playing`);
         return musicSource;
@@ -240,7 +253,7 @@ export function getCurrentMusicId() {
  */
 export async function playWaveFile(filePath, volume = 0.5, loop = false) {
     if (!audioContext || !masterGain) {
-        console.error("[AudioManager] Cannot play wave file: Audio context not initialized");
+        logger.error("[AudioManager] Cannot play wave file: Audio context not initialized");
         return null;
     }
 

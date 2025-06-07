@@ -1,8 +1,8 @@
 // js/managers/enemyManager.js
 // import * as THREE from 'three'; // No longer needed directly
-// import * as UIManager from './uiManager.js'; // Removed unused import
 import { createLogger } from '../utils/logger.js';
 // Import the specific enemy classes
+import eventBus from '../core/eventBus.js';
 import { Bear } from '../entities/enemies/Bear.js';
 import { Squirrel } from '../entities/enemies/Squirrel.js';
 import { Deer } from '../entities/enemies/Deer.js';
@@ -60,7 +60,7 @@ export class EnemyManager {
         if (!chunkManager || !levelConfig) {
              const errorMsg = `[EnemyManager] spawnEnemy called without valid ChunkManager or levelConfig! Cannot spawn ${enemyType}.`;
              logger.error(errorMsg); // Use logger instead of UIManager
-             // UIManager.displayError(new Error(errorMsg));
+             eventBus.emit('errorOccurred', errorMsg);
              return null;
         }
         const properties = levelConfig.ENEMY_PROPERTIES?.[enemyType];
@@ -95,7 +95,7 @@ export class EnemyManager {
                     enemyInstance = new EnemyClass(initialData, properties, this.scene, chunkManager);
                 } catch (error) {
                      logger.error(`[EnemyManager] Error instantiating enemy type ${enemyType}:`, error);
-                     // UIManager.displayError(new Error(`Failed to create enemy: ${enemyType}`)); // Use logger
+                     eventBus.emit('errorOccurred', `Failed to create enemy: ${enemyType}`);
                      return null;
                 }
             } else {
@@ -116,7 +116,7 @@ export class EnemyManager {
             if (enemyInstance && !enemyInstance.mesh) {
                  this.objectPoolManager.addToPool('enemies', enemyInstance);
             }
-            // UIManager.displayError(new Error(`[EnemyManager] Failed to create mesh or instance for enemy type ${enemyType}`)); // Use logger
+            eventBus.emit('errorOccurred', `[EnemyManager] Failed to create mesh or instance for enemy type ${enemyType}`);
             return null;
         }
     }
@@ -136,7 +136,7 @@ export class EnemyManager {
             this.spatialGrid.remove(enemyInstance.mesh);
             enemyInstance.removeFromScene();
             this.activeEnemies.delete(meshId);
-            this.objectPoolManager.addToPool('enemies', enemyInstance);
+            this.objectPoolManager.addToPool('enemies', enemyInstance, enemyInstance.type);
         } else {
             logger.warn(`[EnemyManager] Attempted to remove enemy (ID: ${meshId}) not found in active list.`);
             this.spatialGrid.remove(enemyInstance.mesh);

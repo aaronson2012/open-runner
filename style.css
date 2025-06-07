@@ -734,3 +734,43 @@ html, body {
     50% { opacity: 1; }
     100% { opacity: 0.7; }
 }
+
+.powerup-notification {
+  position: absolute;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 1.5em;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  animation: fadeUp 1.5s forwards;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50px);
+  }
+}
+
+/* --- Interaction Screen --- */
+#interaction-screen {
+    background-color: #000;
+    z-index: 9999; /* Above everything else, including loading screen */
+}
+
+.interaction-text {
+    font-size: 1.5em;
+    color: #fff;
+    animation: fadeInOut 2s infinite;
+}
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}

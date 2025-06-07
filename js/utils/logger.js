@@ -182,7 +182,7 @@ class Logger {
 
 
 // Use WARN as the default minimum level to reduce console clutter
-const defaultLogger = new Logger('App', LogLevel.WARN);
+const defaultLogger = new Logger('App', LogLevel.INFO);
 
 // Allows enabling verbose logging via URL parameter, e.g., ?logLevel=DEBUG
 try {

@@ -21,7 +21,6 @@ import * as ModelFactory from '../rendering/modelFactory.js'; // Updated path
  * Each object contains: { position, type, scale, rotationY, collected, collidable, scoreValue, mesh }
  */
 export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
-
     const chunkSeed = `${worldConfig.SEED}_objects_chunk_${chunkX}_${chunkZ}`;
     const rng = prng_alea(chunkSeed);
     const chunkObjectsData = [];
@@ -31,62 +30,26 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
 
     const playerSpawnPoint = new THREE.Vector3(0, 10, 5);
     const playerSpawnSafeRadiusSq = worldConfig.PLAYER_SPAWN_SAFE_RADIUS * worldConfig.PLAYER_SPAWN_SAFE_RADIUS;
-    // Removed debug log
-
 
     // --- Generate Non-Enemy Objects ---
     for (const objectType of levelConfig.OBJECT_TYPES) {
-        const type = objectType.type;
-        const density = objectType.density;
-        const minDistance = objectType.minDistance;
+        const {
+            type, density, minDistance, verticalOffset, scaleRange,
+            randomRotationY, collidable, scoreValue = 0, maxPlacementAttempts = 20
+        } = objectType;
         const minDistanceSq = minDistance * minDistance;
-        const verticalOffset = objectType.verticalOffset;
-        const scaleRange = objectType.scaleRange;
-        const randomRotationY = objectType.randomRotationY;
-        const collidable = objectType.collidable;
-        const scoreValue = objectType.scoreValue || 0;
-        const maxPlacementAttempts = objectType.maxPlacementAttempts || 10; // Default attempts if not specified
 
         const averageObjects = chunkArea * density;
         const numObjects = Math.floor(averageObjects * (0.8 + rng() * 0.4));
-        let placedCount = 0;
 
         for (let i = 0; i < numObjects; i++) {
-            let placed = false;
-            for (let attempt = 0; attempt < maxPlacementAttempts; attempt++) {
-                let relativeX, relativeZ, worldX, worldZ;
+            const position = findValidPosition(
+                rng, chunkOffsetX, chunkOffsetZ, minDistance, playerSpawnPoint,
+                playerSpawnSafeRadiusSq, chunkObjectsData, maxPlacementAttempts
+            );
 
-                if (type === 'tumbleweed' && objectType.spawnOffPath) {
-                    const side = rng() > 0.5 ? 1 : -1;
-                    const offsetRange = objectType.spawnOffsetRange || [60, 100];
-                    const offsetDistance = offsetRange[0] + rng() * (offsetRange[1] - offsetRange[0]);
-                    relativeX = (rng() - 0.5) * worldConfig.CHUNK_SIZE * 0.2 + (side * offsetDistance);
-                    relativeZ = (rng() - 0.5) * worldConfig.CHUNK_SIZE * 2.0;
-                    worldX = relativeX + chunkOffsetX;
-                    worldZ = relativeZ + chunkOffsetZ;
-                } else {
-                    relativeX = (rng() - 0.5) * worldConfig.CHUNK_SIZE;
-                    relativeZ = (rng() - 0.5) * worldConfig.CHUNK_SIZE;
-                    worldX = relativeX + chunkOffsetX;
-                    worldZ = relativeZ + chunkOffsetZ;
-                }
-
-                let tooClose = false;
-                for (const existingObject of chunkObjectsData) {
-                    const dx = worldX - existingObject.position.x;
-                    const dz = worldZ - existingObject.position.z;
-                    const requiredDistSq = Math.max(minDistanceSq, existingObject.minDistance * existingObject.minDistance);
-                    if (dx * dx + dz * dz < requiredDistSq) {
-                        tooClose = true;
-                        break;
-                    }
-                }
-                if (tooClose) continue;
-
-                const dxSpawn = worldX - playerSpawnPoint.x;
-                const dzSpawn = worldZ - playerSpawnPoint.z;
-                if (dxSpawn * dxSpawn + dzSpawn * dzSpawn < playerSpawnSafeRadiusSq) continue;
-
+            if (position) {
+                const { worldX, worldZ } = position;
                 const terrainY = noise2D(worldX * levelConfig.NOISE_FREQUENCY, worldZ * levelConfig.NOISE_FREQUENCY) * levelConfig.NOISE_AMPLITUDE;
                 const objectPos = new THREE.Vector3(worldX, terrainY + verticalOffset, worldZ);
                 const scaleFactor = scaleRange[0] + rng() * (scaleRange[1] - scaleRange[0]);
@@ -94,101 +57,136 @@ export function generateObjectsForChunk(chunkX, chunkZ, levelConfig) {
                 const objectRotationY = randomRotationY ? rng() * Math.PI * 2 : 0;
 
                 const objectData = {
-                    position: objectPos, type: type, scale: objectScale, rotationY: objectRotationY,
-                    collected: false, collidable: collidable, scoreValue: scoreValue,
-                    minDistance: minDistance, mesh: null
+                    position: objectPos, type, scale: objectScale, rotationY: objectRotationY,
+                    collected: false, collidable, scoreValue, minDistance, mesh: null
                 };
-
-                if (type === 'tumbleweed') {
-                    objectData.isHazard = objectType.isHazard || false;
-                    objectData.isDynamic = true;
-                    if (objectType.spawnOffPath) {
-                        objectData.spawnSide = objectPos.x > chunkOffsetX ? 'right' : 'left';
-                    }
-                }
-
                 chunkObjectsData.push(objectData);
-                placed = true;
-                placedCount++;
-                break;
-            }
-            if (!placed) {
-                 // More informative log when placement fails
-                 logger.warn(`Could not place ${type} ${i + 1}/${numObjects} in chunk [${chunkX}, ${chunkZ}] after ${maxPlacementAttempts} attempts. Density or minDistance might be too high.`);
+            } else {
+                logger.warn(`Could not place ${type} ${i + 1}/${numObjects} in chunk [${chunkX}, ${chunkZ}] after ${maxPlacementAttempts} grid attempts. Density or minDistance might be too high.`);
             }
         }
     }
 
     // --- Generate Enemies ---
     const enemyTypes = levelConfig.ENEMY_TYPES || [];
-    const enemyProperties = levelConfig.ENEMY_PROPERTIES || {};
-    let maxEnemyMinDistance = 0;
     if (enemyTypes.length > 0) {
-        maxEnemyMinDistance = Math.max(...enemyTypes.map(type => enemyProperties[type]?.minDistance || 0));
-    }
-    const maxEnemyMinDistanceSq = maxEnemyMinDistance * maxEnemyMinDistance;
-    const averageEnemies = chunkArea * (levelConfig.ENEMY_SPAWN_DENSITY || 0);
-    const numEnemiesToAttempt = Math.floor(averageEnemies * (0.8 + rng() * 0.4));
-    let enemiesPlaced = 0;
+        const enemyProperties = levelConfig.ENEMY_PROPERTIES || {};
+        const averageEnemies = chunkArea * (levelConfig.ENEMY_SPAWN_DENSITY || 0);
+        const numEnemiesToAttempt = Math.floor(averageEnemies * (0.8 + rng() * 0.4));
 
-    for (let i = 0; i < numEnemiesToAttempt; i++) {
-        let placed = false;
-        const maxTotalAttempts = 20; // Keep attempts reasonable
-        for (let attempt = 0; attempt < maxTotalAttempts; attempt++) {
-            const relativeX = (rng() - 0.5) * worldConfig.CHUNK_SIZE;
-            const relativeZ = (rng() - 0.5) * worldConfig.CHUNK_SIZE;
-            const worldX = relativeX + chunkOffsetX;
-            const worldZ = relativeZ + chunkOffsetZ;
-
-            let tooClose = false;
-            for (const existingObject of chunkObjectsData) {
-                const dx = worldX - existingObject.position.x;
-                const dz = worldZ - existingObject.position.z;
-                const requiredDistSq = Math.max(
-                    existingObject.minDistance * existingObject.minDistance,
-                    maxEnemyMinDistanceSq
-                );
-                if (dx * dx + dz * dz < requiredDistSq) {
-                    tooClose = true;
-                    break;
-                }
-            }
-            if (tooClose) continue;
-
-            const dxSpawn = worldX - playerSpawnPoint.x;
-            const dzSpawn = worldZ - playerSpawnPoint.z;
-            if (dxSpawn * dxSpawn + dzSpawn * dzSpawn < playerSpawnSafeRadiusSq) continue;
-
-            if (enemyTypes.length === 0) continue;
+        for (let i = 0; i < numEnemiesToAttempt; i++) {
             const chosenTypeIndex = Math.floor(rng() * enemyTypes.length);
             const chosenType = enemyTypes[chosenTypeIndex];
             const properties = enemyProperties[chosenType];
             if (!properties) {
-                 logger.warn(`Missing properties for enemy type: ${chosenType}`);
-                 continue;
+                logger.warn(`Missing properties for enemy type: ${chosenType}`);
+                continue;
             }
+            const { minDistance = 10, verticalOffset = 0, maxPlacementAttempts = 20 } = properties;
 
-            const terrainY = noise2D(worldX * levelConfig.NOISE_FREQUENCY, worldZ * levelConfig.NOISE_FREQUENCY) * levelConfig.NOISE_AMPLITUDE;
-            const objectPos = new THREE.Vector3(worldX, terrainY + (properties.verticalOffset || 0), worldZ); // Use specific offset or 0
-            const objectScale = new THREE.Vector3(1, 1, 1);
-            const objectRotationY = rng() * Math.PI * 2;
+            const position = findValidPosition(
+                rng, chunkOffsetX, chunkOffsetZ, minDistance, playerSpawnPoint,
+                playerSpawnSafeRadiusSq, chunkObjectsData, maxPlacementAttempts
+            );
 
-            chunkObjectsData.push({
-                position: objectPos, type: chosenType, scale: objectScale, rotationY: objectRotationY,
-                collected: false, collidable: true, scoreValue: 0,
-                minDistance: properties.minDistance, mesh: null, enemyInstance: null
-            });
-            placed = true;
-            enemiesPlaced++;
-            break;
+            if (position) {
+                const { worldX, worldZ } = position;
+                const terrainY = noise2D(worldX * levelConfig.NOISE_FREQUENCY, worldZ * levelConfig.NOISE_FREQUENCY) * levelConfig.NOISE_AMPLITUDE;
+                const objectPos = new THREE.Vector3(worldX, terrainY + verticalOffset, worldZ);
+                const objectScale = new THREE.Vector3(1, 1, 1);
+                const objectRotationY = rng() * Math.PI * 2;
+
+                chunkObjectsData.push({
+                    position: objectPos, type: chosenType, scale: objectScale, rotationY: objectRotationY,
+                    collected: false, collidable: true, scoreValue: 0,
+                    minDistance: minDistance, mesh: null, enemyInstance: null
+                });
+            } else {
+                logger.warn(`Could not place enemy ${i + 1}/${numEnemiesToAttempt} in chunk [${chunkX}, ${chunkZ}] after ${maxPlacementAttempts} grid attempts. Density or minDistance might be too high.`);
+            }
         }
-         if (!placed) {
-             // More informative log when placement fails
-             logger.warn(`Could not place enemy ${i + 1}/${numEnemiesToAttempt} in chunk [${chunkX}, ${chunkZ}] after ${maxTotalAttempts} attempts. Density or minDistance might be too high.`);
-         }
     }
 
     return chunkObjectsData;
+}
+
+
+/**
+ * Checks if a given world position is valid for placing an object.
+ * @param {number} worldX - The world X coordinate.
+ * @param {number} worldZ - The world Z coordinate.
+ * @param {number} minDistance - The minimum required distance from other objects.
+ * @param {THREE.Vector3} playerSpawnPoint - The player's spawn point.
+ * @param {number} playerSpawnSafeRadiusSq - The squared safe radius around the spawn.
+ * @param {Array<Object>} chunkObjectsData - Array of already placed objects.
+ * @returns {boolean} True if the position is valid, false otherwise.
+ */
+function isPositionValid(worldX, worldZ, minDistance, playerSpawnPoint, playerSpawnSafeRadiusSq, chunkObjectsData) {
+    const minDistanceSq = minDistance * minDistance;
+
+    // Check distance to player spawn
+    const dxSpawn = worldX - playerSpawnPoint.x;
+    const dzSpawn = worldZ - playerSpawnPoint.z;
+    if (dxSpawn * dxSpawn + dzSpawn * dzSpawn < playerSpawnSafeRadiusSq) {
+        return false;
+    }
+
+    // Check distance to other objects
+    for (const existingObject of chunkObjectsData) {
+        const dx = worldX - existingObject.position.x;
+        const dz = worldZ - existingObject.position.z;
+        // Check against both the new object's minDistance and the existing one's
+        const requiredDistSq = Math.max(minDistanceSq, existingObject.minDistance * existingObject.minDistance);
+        if (dx * dx + dz * dz < requiredDistSq) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+/**
+ * Finds a valid position within a chunk using a shuffled grid-based approach.
+ * @param {function} rng - The random number generator.
+ * @param {number} chunkOffsetX - The world X offset of the chunk.
+ * @param {number} chunkOffsetZ - The world Z offset of the chunk.
+ * @param {number} minDistance - The minimum distance for the object being placed.
+ * @param {THREE.Vector3} playerSpawnPoint - The player's spawn point.
+ * @param {number} playerSpawnSafeRadiusSq - The squared safe radius around spawn.
+ * @param {Array<Object>} chunkObjectsData - Array of already placed objects.
+ * @param {number} maxAttempts - The number of grid cells to try.
+ * @returns {{worldX: number, worldZ: number} | null} A valid position or null if none found.
+ */
+function findValidPosition(rng, chunkOffsetX, chunkOffsetZ, minDistance, playerSpawnPoint, playerSpawnSafeRadiusSq, chunkObjectsData, maxAttempts) {
+    const gridSize = Math.ceil(Math.sqrt(maxAttempts)); // e.g., 20 attempts -> 5x5 grid
+    const cellSize = worldConfig.CHUNK_SIZE / gridSize;
+
+    const points = [];
+    for (let i = 0; i < gridSize; i++) {
+        for (let j = 0; j < gridSize; j++) {
+            points.push({ i, j });
+        }
+    }
+
+    // Fisher-Yates shuffle
+    for (let i = points.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [points[i], points[j]] = [points[j], points[i]];
+    }
+
+    for (const point of points) {
+        const relativeX = (point.i + rng()) * cellSize - (worldConfig.CHUNK_SIZE / 2);
+        const relativeZ = (point.j + rng()) * cellSize - (worldConfig.CHUNK_SIZE / 2);
+        const worldX = relativeX + chunkOffsetX;
+        const worldZ = relativeZ + chunkOffsetZ;
+
+        if (isPositionValid(worldX, worldZ, minDistance, playerSpawnPoint, playerSpawnSafeRadiusSq, chunkObjectsData)) {
+            return { worldX, worldZ };
+        }
+    }
+
+    return null; // No valid position found
 }
 
 

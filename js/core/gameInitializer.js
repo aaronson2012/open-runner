@@ -17,8 +17,11 @@ import eventBus from './eventBus.js';
 import { initPlayerController, updatePlayer as updatePlayerController } from '../entities/playerController.js';
 import { initCollisionManager, checkCollisions } from '../managers/collisionManager.js';
 import * as ScoreManager from '../managers/scoreManager.js';
-import * as UIManager from '../managers/uiManager.js';
 import * as AssetManager from '../managers/assetManager.js';
+import * as MenuManager from '../managers/ui/menuManager.js';
+import * as HUDManager from '../managers/ui/hudManager.js';
+import * as NotificationManager from '../managers/ui/notificationManager.js';
+import * as LoadingScreenManager from '../managers/ui/loadingScreenManager.js';
 import cameraManager from '../managers/cameraManager.js';
 import sceneTransitionManager from '../managers/sceneTransitionManager.js';
 import atmosphericManager from '../managers/atmosphericManager.js';
@@ -41,13 +44,10 @@ export async function initializeGame(canvasElement) {
         performanceManager.init();
         const fpsCounter = createFpsCounter();
 
-        if (!UIManager.initUIManager()) {
-            logger.error("UI Manager initialization failed.");
+        if (!MenuManager.init() || !HUDManager.init() || !NotificationManager.init() || !LoadingScreenManager.init()) {
+            logger.error("One or more UI managers failed to initialize.");
             return null;
         }
-
-        UIManager.updateScoreDisplay(0, false, true);
-        UIManager.updateHighScoreDisplay(ScoreManager.getGlobalHighScore());
 
         const initialLevelId = 'level1';
         const levelLoaded = await LevelManager.loadLevel(initialLevelId);
@@ -92,11 +92,9 @@ export async function initializeGame(canvasElement) {
         setupPlayerControls(renderer.domElement);
         initInputStateManager();
 
-        AudioManager.initAudio();
-
         gameStateManager.setGameState(GameStates.LOADING);
         await chunkManager.loadInitialChunks((loaded, total) => {
-            UIManager.updateLoadingProgress(loaded, total);
+            LoadingScreenManager.updateLoadingProgress(loaded, total);
         });
 
         gameStateManager.setGameState(GameStates.TITLE);
@@ -120,7 +118,12 @@ export async function initializeGame(canvasElement) {
             particleManager,
             playerController: { updatePlayer: updatePlayerController },
             spatialGrid,
-            uiManager: UIManager,
+            uiManagers: {
+                MenuManager,
+                HUDManager,
+                NotificationManager,
+                LoadingScreenManager
+            },
             atmosphericManager,
             fpsCounter,
             currentLevelConfig,
@@ -129,7 +132,7 @@ export async function initializeGame(canvasElement) {
 
     } catch (error) {
         logger.error("CRITICAL ERROR during game initialization:", error);
-        UIManager.displayError(new Error("Game initialization failed critically. Check console."));
+        eventBus.emit('errorOccurred', "Game initialization failed critically. Check console.");
         return null;
     }
 }

@@ -16,17 +16,18 @@ import { resetInputStates, initInputStateManager } from '../input/controlsSetup.
 import { updateMobileControlsVisibility } from '../utils/deviceUtils.js';
 import * as ScoreManager from '../managers/scoreManager.js';
 import * as LevelManager from '../managers/levelManager.js';
-import * as UIManager from '../managers/uiManager.js';
 import { initPlayerManager, getPlayerManager } from '../managers/playerManager.js';
 import cameraManager from '../managers/cameraManager.js';
 import sceneTransitionManager from '../managers/sceneTransitionManager.js';
 import atmosphericManager from '../managers/atmosphericManager.js';
+import powerupEffectManager from '../managers/PowerupEffectManager.js';
 import { initScene } from '../rendering/sceneSetup.js';
 import { SpatialGrid } from '../physics/spatialGrid.js';
 import { EnemyManager } from '../managers/enemyManager.js';
 import { ChunkManager } from '../managers/chunkManager.js';
 import { ParticleManager } from '../managers/particleManager.js';
 import { initCollisionManager } from '../managers/collisionManager.js';
+import powerupNotificationManager from '../managers/ui/powerupNotificationManager.js';
 
 const logger = createLogger('Game');
 
@@ -62,8 +63,9 @@ class Game {
         this.particleManager = null;
         this.playerController = null;
         this.spatialGrid = null;
-        this.uiManager = UIManager;
+        this.uiManagers = {};
         this.atmosphericManager = atmosphericManager;
+        this.powerupEffectManager = powerupEffectManager;
         this.player = null;
         this.currentLevelConfig = null;
         this.playerAnimationTime = 0;
@@ -108,7 +110,7 @@ class Game {
         this.particleManager = initResult.particleManager;
         this.playerController = initResult.playerController;
         this.spatialGrid = initResult.spatialGrid;
-        this.uiManager = initResult.uiManager;
+        this.uiManagers = initResult.uiManagers;
         this.atmosphericManager = initResult.atmosphericManager;
         this.fpsCounter = initResult.fpsCounter;
         this.currentLevelConfig = initResult.currentLevelConfig;
@@ -117,6 +119,11 @@ class Game {
         // Initialize PlayerManager
         this.playerManager = initPlayerManager(this.player);
         logger.info("PlayerManager initialized");
+        this.powerupEffectManager.setPlayer(this.player);
+
+        // Initialize PowerupNotificationManager
+        powerupNotificationManager.init(this.camera, document.getElementById('game-container'));
+        logger.info("PowerupNotificationManager initialized");
 
         // Setup event subscriptions after all components are initialized
         this._setupEventSubscriptions();
@@ -142,15 +149,15 @@ class Game {
         document.addEventListener('keydown', this.boundHandleGlobalKeys);
 
         // Setup UI Button Listeners
-        this.uiManager.setupStartButton(() => this.startGame('level1'));
-        this.uiManager.setupBackToTitleButton(() => this.gameStateManager.requestReturnToTitle());
-        this.uiManager.setupLevelSelectButton(() => this.gameStateManager.requestShowLevelSelect());
-        this.uiManager.setupPauseMenuButtons(
+        this.uiManagers.MenuManager.setupStartButton(() => this.startGame('level1'));
+        this.uiManagers.MenuManager.setupBackToTitleButton(() => this.gameStateManager.requestReturnToTitle());
+        this.uiManagers.MenuManager.setupLevelSelectButton(() => this.gameStateManager.requestShowLevelSelect());
+        this.uiManagers.MenuManager.setupPauseMenuButtons(
             () => this.gameStateManager.requestResume(),
             () => this.gameStateManager.requestRestart(),
             () => this.gameStateManager.requestReturnToTitle()
         );
-        this.uiManager.setupGameOverButtons(
+        this.uiManagers.MenuManager.setupGameOverButtons(
             () => this.gameStateManager.requestRestart(),
             () => this.gameStateManager.requestReturnToTitle()
         );
@@ -169,7 +176,7 @@ class Game {
             player: this.player,
             levelManager: this.levelManager,
             scoreManager: ScoreManager,
-            uiManager: this.uiManager,
+            uiManagers: this.uiManagers,
             cameraManager: this.cameraManager,
             sceneTransitionManager: this.sceneTransitionManager,
             atmosphericManager: this.atmosphericManager,
@@ -180,231 +187,7 @@ class Game {
             // Removed score/timer getters/setters
         });
 
-        // Event listeners for powerup effects
-        eventBus.subscribe('applyPowerupEffect', ({ type, player }) => {
-            if (type === gameplayConfig.POWERUP_TYPE_MAGNET && player && player.model) {
-                logger.info(`Applying ${type} powerup visual effect to player`);
-
-                // Create a new material for the magnet powerup effect
-                const magnetMaterial = new THREE.MeshStandardMaterial({
-                    color: gameplayConfig.MAGNET_EFFECT_COLOR,
-                    emissive: gameplayConfig.MAGNET_EFFECT_EMISSIVE,
-                    metalness: gameplayConfig.MAGNET_EFFECT_METALNESS,
-                    roughness: gameplayConfig.MAGNET_EFFECT_ROUGHNESS
-                });
-
-                // Apply the material to all meshes in the player model
-                player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh) {
-                        // Store the original material if not already stored
-                        if (!child.userData.originalMaterial) {
-                            child.userData.originalMaterial = child.material;
-                        }
-                        child.material = magnetMaterial;
-                    }
-                });
-            } else if (type === gameplayConfig.POWERUP_TYPE_DOUBLER && player && player.model) {
-                logger.info(`Applying ${type} powerup visual effect to player`);
-
-                // Create a new material for the doubler powerup effect
-                const doublerMaterial = new THREE.MeshStandardMaterial({
-                    color: gameplayConfig.DOUBLER_EFFECT_COLOR,
-                    emissive: gameplayConfig.DOUBLER_EFFECT_EMISSIVE,
-                    metalness: gameplayConfig.DOUBLER_EFFECT_METALNESS,
-                    roughness: gameplayConfig.DOUBLER_EFFECT_ROUGHNESS
-                });
-
-                // Apply the material to all meshes in the player model
-                player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh) {
-                        // Store the original material if not already stored
-                        if (!child.userData.originalMaterial) {
-                            child.userData.originalMaterial = child.material;
-                        }
-                        child.material = doublerMaterial;
-                    }
-                });
-                
-                // Create a visual indicator for the doubler powerup
-                if (!player.doublerIndicator) {
-                    player.doublerIndicator = new THREE.Group();
-                    
-                    // Create a material for the X indicator
-                    const xMaterial = new THREE.MeshStandardMaterial({
-                        color: gameplayConfig.DOUBLER_EFFECT_COLOR,
-                        emissive: gameplayConfig.DOUBLER_EFFECT_EMISSIVE,
-                        metalness: 0.8,
-                        roughness: 0.1
-                    });
-                    
-                    // Create a floating X above the player's head
-                    const indicatorSize = 0.3;
-                    const indicatorHeight = 2.0; // Height above player
-                    
-                    // Create a background disc for the X
-                    const bgGeometry = new THREE.CylinderGeometry(indicatorSize * 1.2, indicatorSize * 1.2, 0.05, 16);
-                    bgGeometry.rotateX(Math.PI / 2);
-                    const bgMaterial = new THREE.MeshStandardMaterial({
-                        color: 0x000033, // Dark blue background
-                        transparent: true,
-                        opacity: 0.6
-                    });
-                    const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
-                    
-                    // First diagonal of X (top-left to bottom-right)
-                    const diag1Geometry = new THREE.BoxGeometry(indicatorSize * 0.15, indicatorSize * 1.4, 0.05);
-                    const diag1 = new THREE.Mesh(diag1Geometry, xMaterial);
-                    diag1.rotation.z = Math.PI / 4; // 45-degree angle
-                    diag1.position.z = 0.03; // Slightly in front of the background
-                    
-                    // Second diagonal of X (top-right to bottom-left)
-                    const diag2Geometry = new THREE.BoxGeometry(indicatorSize * 0.15, indicatorSize * 1.4, 0.05);
-                    const diag2 = new THREE.Mesh(diag2Geometry, xMaterial);
-                    diag2.rotation.z = -Math.PI / 4; // -45-degree angle
-                    diag2.position.z = 0.03; // Slightly in front of the background
-                    
-                    // Add all parts to the indicator group
-                    player.doublerIndicator.add(bgMesh);
-                    player.doublerIndicator.add(diag1);
-                    player.doublerIndicator.add(diag2);
-                    
-                    // Position the indicator above the player's head
-                    player.doublerIndicator.position.set(0, indicatorHeight, 0);
-                    
-                    // Add to player model so it moves with the player
-                    player.model.add(player.doublerIndicator);
-                }
-            } else if (type === gameplayConfig.POWERUP_TYPE_INVISIBILITY && player && player.model) {
-                logger.info(`Applying ${type} powerup visual effect to player`);
-                
-                // Create a new material for the invisibility powerup effect
-                const invisibilityMaterial = new THREE.MeshStandardMaterial({
-                    color: gameplayConfig.INVISIBILITY_EFFECT_COLOR,
-                    emissive: gameplayConfig.INVISIBILITY_EFFECT_EMISSIVE,
-                    metalness: gameplayConfig.INVISIBILITY_EFFECT_METALNESS,
-                    roughness: gameplayConfig.INVISIBILITY_EFFECT_ROUGHNESS,
-                    transparent: true,
-                    opacity: gameplayConfig.INVISIBILITY_EFFECT_OPACITY
-                });
-                
-                // Apply the material to all meshes in the player model
-                player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh) {
-                        // Store the original material if not already stored
-                        if (!child.userData.originalMaterial) {
-                            child.userData.originalMaterial = child.material;
-                        }
-                        child.material = invisibilityMaterial;
-                    }
-                });
-            }
-        });
-
-        eventBus.subscribe('removePowerupEffect', ({ type, player }) => {
-            if (type === gameplayConfig.POWERUP_TYPE_MAGNET && player && player.model) {
-                logger.info(`Removing ${type} powerup visual effect from player`);
-
-                // Restore original materials
-                player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
-                        child.material = child.userData.originalMaterial;
-                        // Clear the stored material reference
-                        delete child.userData.originalMaterial;
-                    }
-                });
-            } else if (type === gameplayConfig.POWERUP_TYPE_DOUBLER && player && player.model) {
-                logger.info(`Removing ${type} powerup visual effect from player`);
-
-                // Restore original materials
-                player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
-                        child.material = child.userData.originalMaterial;
-                        // Clear the stored material reference
-                        delete child.userData.originalMaterial;
-                    }
-                });
-                
-                // Remove the doubler indicator
-                if (player.doublerIndicator) {
-                    player.model.remove(player.doublerIndicator);
-                    
-                    // Dispose geometries and materials
-                    player.doublerIndicator.traverse(child => {
-                        if (child instanceof THREE.Mesh) {
-                            if (child.geometry) child.geometry.dispose();
-                            if (child.material) {
-                                if (Array.isArray(child.material)) {
-                                    child.material.forEach(m => m.dispose());
-                                } else {
-                                    child.material.dispose();
-                                }
-                            }
-                        }
-                    });
-                    
-                    player.doublerIndicator = null;
-                }
-            } else if (type === gameplayConfig.POWERUP_TYPE_INVISIBILITY && player && player.model) {
-                logger.info(`Removing ${type} powerup visual effect from player`);
-                
-                // Restore original materials
-                player.model.traverse(child => {
-                    if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
-                        child.material = child.userData.originalMaterial;
-                        // Clear the stored material reference
-                        delete child.userData.originalMaterial;
-                    }
-                });
-                
-                // Remove the invisibility indicator
-                if (player.invisibilityIndicator) {
-                    player.model.remove(player.invisibilityIndicator);
-                    
-                    // Dispose geometries and materials
-                    player.invisibilityIndicator.traverse(child => {
-                        if (child instanceof THREE.Mesh) {
-                            if (child.geometry) child.geometry.dispose();
-                            if (child.material) {
-                                if (Array.isArray(child.material)) {
-                                    child.material.forEach(m => m.dispose());
-                                } else {
-                                    child.material.dispose();
-                                }
-                            }
-                        }
-                    });
-                    
-                    player.invisibilityIndicator = null;
-                }
-                
-                // Remove particle effect
-                if (player.invisibilityEffect) {
-                    player.model.remove(player.invisibilityEffect);
-                    
-                    // Dispose geometries and materials
-                    player.invisibilityEffect.traverse(child => {
-                        if (child instanceof THREE.Mesh) {
-                            if (child.geometry) child.geometry.dispose();
-                            if (child.material) {
-                                if (Array.isArray(child.material)) {
-                                    child.material.forEach(m => m.dispose());
-                                } else {
-                                    child.material.dispose();
-                                }
-                            }
-                        }
-                    });
-                    
-                    player.invisibilityEffect = null;
-                    
-                    // Unsubscribe from update event
-                    if (player.invisibilityEffectUpdateHandler) {
-                        eventBus.unsubscribe('gameLoopUpdate', player.invisibilityEffectUpdateHandler);
-                        player.invisibilityEffectUpdateHandler = null;
-                    }
-                }
-            }
-        });
+        // Powerup effects are now handled by PowerupEffectManager
     }
 
     /**
@@ -458,6 +241,8 @@ class Game {
             );
             this.playerAnimationTime += deltaTime;
         }
+
+        powerupNotificationManager.update();
 
         this.sceneTransitionManager.update(deltaTime, elapsedTime);
         this.activeScene = this.sceneTransitionManager.getActiveScene() || this.scene;
@@ -525,6 +310,7 @@ class Game {
      * @returns {Promise<void>}
      */
     async startGame(levelId) {
+        logger.debug(`END-TO-END TEST: startGame called with levelId: ${levelId}`);
         logger.info(`Starting level: ${levelId}`);
 
         // Stop any currently playing music FIRST, before anything else
@@ -547,7 +333,7 @@ class Game {
         if (!levelLoaded) {
             logger.error(`Failed to load level config for ${levelId} in startGame. Aborting.`);
             this.gameStateManager.setGameState(GameStates.TITLE);
-            this.uiManager.displayError(new Error(`Failed to load level ${levelId}.`));
+            eventBus.emit('errorOccurred', `Failed to load level ${levelId}.`);
             return;
         }
         this.currentLevelConfig = this.levelManager.getCurrentConfig();
@@ -559,9 +345,6 @@ class Game {
         } else {
              this._updateSceneAppearance(this.currentLevelConfig, this.gameplayScene);
         }
-
-        // Position player on terrain before starting camera transition
-        await this._positionPlayerOnTerrain();
 
         // Start camera transition
         this.cameraManager.startTransitionToGameplay(this.camera.position, this.camera.quaternion);
@@ -668,7 +451,7 @@ class Game {
             ScoreManager.resetCurrentScore();
             // Also directly update the UI score display to ensure it's reset
             // Don't make it visible yet - it should stay hidden during loading
-            this.uiManager.updateScoreDisplay(0, false, true);
+            eventBus.emit('scoreChanged', -1); // Reset score
             // The 'currentScoreUpdated' event is now emitted by ScoreManager.resetCurrentScore
             this.playerAnimationTime = 0;
             
@@ -679,7 +462,7 @@ class Game {
 
             // Load initial chunks
             await this.chunkManager.loadInitialChunks((loaded, total) => {
-                 this.uiManager.updateLoadingProgress(loaded, total);
+                 this.uiManagers.LoadingScreenManager.updateLoadingProgress(loaded, total);
             });
 
             // Position player on terrain after chunks are loaded
@@ -692,7 +475,7 @@ class Game {
         } catch (error) {
             logger.error(`CRITICAL ERROR during level load for ${levelId}:`, error);
             this.gameStateManager.setGameState(GameStates.TITLE);
-            this.uiManager.displayError(new Error(`Failed to load level ${levelId}. Returning to title.`));
+            eventBus.emit('errorOccurred', `Failed to load level ${levelId}. Returning to title.`);
         }
     }
 
@@ -733,6 +516,7 @@ class Game {
       */
      handleGlobalKeys(event) {
         const currentState = this.gameStateManager.getCurrentState();
+        logger.debug(`END-TO-END TEST: Key pressed: ${event.key} in state: ${currentState}`);
         logger.debug(`Key pressed: ${event.key} (lowercase: ${event.key.toLowerCase()}) in state: ${currentState}`);
 
         const lowerCaseKey = event.key.toLowerCase();
@@ -787,18 +571,19 @@ class Game {
         const playerPos = this.player.model.position;
 
         // Calculate terrain height at player position
+        const terrain = this.currentLevelConfig.terrain;
         const terrainY = noise2D(
-            playerPos.x * this.currentLevelConfig.NOISE_FREQUENCY,
-            playerPos.z * this.currentLevelConfig.NOISE_FREQUENCY
-        ) * this.currentLevelConfig.NOISE_AMPLITUDE;
+            playerPos.x * terrain.NOISE_FREQUENCY,
+            playerPos.z * terrain.NOISE_FREQUENCY
+        ) * terrain.NOISE_AMPLITUDE;
 
         // Set player Y position to terrain height plus offset
         playerPos.y = terrainY + playerConfig.HEIGHT_OFFSET;
 
         logger.info(`Player positioned on terrain at height ${playerPos.y}`);
 
-        // Ensure chunks are loaded around player
-        await this.chunkManager.loadInitialChunks();
+        // Chunks are already loaded by _loadLevel, so this call is redundant.
+        // await this.chunkManager.loadInitialChunks();
 
         // Force an update of nearby terrain meshes
         const nearbyMeshes = this.chunkManager.getTerrainMeshesNear(playerPos);

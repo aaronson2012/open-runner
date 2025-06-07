@@ -456,17 +456,71 @@ export function createWaterTowerModel(properties) {
 }
 
 /**
- * Creates a Tumbleweed model (visual only) using assets or fallback.
+ * Creates a procedural Tumbleweed model.
  * @param {object} [properties] - Optional properties (not currently used).
  * @returns {THREE.Group} The tumbleweed model group.
  */
 export function createTumbleweedModel(properties) {
     const group = new THREE.Group();
-    const config = C_MODELS.TUMBLEWEED_MODEL;
-    const geo = AssetManager.getAsset(config.GEO_KEY) || new THREE.IcosahedronGeometry(config.FALLBACK_RADIUS, config.FALLBACK_DETAIL); // Use asset or fallback
+    const config = C_MODELS.TUMBLEWEED;
     const mat = new THREE.MeshStandardMaterial({ color: config.COLOR, roughness: config.ROUGHNESS });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true;
-    group.add(mesh);
+
+    const maxRadius = config.BRANCH_LENGTH_MAX; // Use max branch length as the sphere radius
+
+    // Create main branches
+    for (let i = 0; i < config.BRANCH_COUNT; i++) {
+        const branchLength = THREE.MathUtils.randFloat(config.BRANCH_LENGTH_MIN, maxRadius);
+        const endPoint = new THREE.Vector3(
+            THREE.MathUtils.randFloatSpread(2),
+            THREE.MathUtils.randFloatSpread(2),
+            THREE.MathUtils.randFloatSpread(2)
+        ).normalize().multiplyScalar(branchLength);
+
+        const branchGeo = new THREE.CylinderGeometry(config.BRANCH_RADIUS, config.BRANCH_RADIUS, endPoint.length(), config.BRANCH_SEGMENTS);
+        const branch = new THREE.Mesh(branchGeo, mat);
+
+        branch.position.copy(endPoint).multiplyScalar(0.5);
+        branch.lookAt(endPoint);
+        branch.rotateX(Math.PI / 2);
+
+        group.add(branch);
+
+        // Create smaller, secondary branches (the "web")
+        const subBranches = THREE.MathUtils.randInt(1, 3);
+        for (let j = 0; j < subBranches; j++) {
+            const subBranchLength = branchLength * THREE.MathUtils.randFloat(0.2, 0.5);
+            const subBranchStart = endPoint.clone().multiplyScalar(THREE.MathUtils.randFloat(0.3, 0.7));
+            const subBranchEnd = subBranchStart.clone().add(
+                new THREE.Vector3(
+                    THREE.MathUtils.randFloatSpread(2),
+                    THREE.MathUtils.randFloatSpread(2),
+                    THREE.MathUtils.randFloatSpread(2)
+                ).normalize().multiplyScalar(subBranchLength)
+            );
+
+            // Ensure sub-branches stay within the sphere
+            if (subBranchEnd.length() > maxRadius) {
+                subBranchEnd.normalize().multiplyScalar(maxRadius);
+            }
+
+            const subBranchVec = subBranchEnd.clone().sub(subBranchStart);
+            const subGeo = new THREE.CylinderGeometry(config.BRANCH_RADIUS * 0.6, config.BRANCH_RADIUS * 0.4, subBranchVec.length(), config.BRANCH_SEGMENTS);
+            const subBranch = new THREE.Mesh(subGeo, mat);
+
+            subBranch.position.copy(subBranchStart).add(subBranchVec.multiplyScalar(0.5));
+            subBranch.lookAt(subBranchEnd);
+            subBranch.rotateX(Math.PI / 2);
+
+            group.add(subBranch);
+        }
+    }
+
+    group.traverse(child => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
     return group;
 }

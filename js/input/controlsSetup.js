@@ -1,5 +1,4 @@
 import gameStateManager, { GameStates } from '../core/gameStateManager.js';
-import * as UIManager from '../managers/uiManager.js';
 import eventBus from '../core/eventBus.js';
 import { createLogger } from '../utils/logger.js';
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 import { enemyDefaultsConfig } from '../config/enemyDefaults.js';
-import * as UIManager from '../managers/uiManager.js';
+import eventBus from '../core/eventBus.js';
 import { smoothDamp } from '../utils/mathUtils.js';
 
 const logger = createLogger('Enemy');
@@ -28,7 +28,7 @@ export class Enemy {
     constructor(initialData, properties, scene, chunkManager) {
         if (!chunkManager) {
             const errorMsg = `[Enemy ${initialData.type}] Constructor missing ChunkManager! Grounding will fail.`;
-            UIManager.displayError(new Error(errorMsg));
+            eventBus.emit('errorOccurred', errorMsg);
             logger.error(errorMsg);
         }
         this.scene = scene;
@@ -58,7 +58,7 @@ export class Enemy {
             this.mesh = this.createMesh(); // Calls subclass specific createMesh
         } catch (error) {
              logger.error(`Error creating mesh for ${this.type}:`, error);
-             UIManager.displayError(new Error(`[Enemy] Failed to create mesh for type ${this.type}. See console.`));
+             eventBus.emit('errorOccurred', `[Enemy] Failed to create mesh for type ${this.type}. See console.`);
              this.mesh = null;
         }
 
@@ -73,7 +73,7 @@ export class Enemy {
                 this.scene.add(this.mesh);
             } else {
                 const errorMsg = `[Enemy ${this.type}] Scene not available for adding mesh!`;
-                UIManager.displayError(new Error(errorMsg));
+                eventBus.emit('errorOccurred', errorMsg);
                 logger.error(errorMsg);
             }
         }
@@ -82,7 +82,7 @@ export class Enemy {
 
     createMesh() {
         const errorMsg = `createMesh() not implemented for subclass type ${this.type}!`;
-        UIManager.displayError(new Error(`[Enemy] ${errorMsg}`));
+        eventBus.emit('errorOccurred', `[Enemy] ${errorMsg}`);
         logger.error(errorMsg);
         return null;
     }
@@ -98,9 +98,14 @@ export class Enemy {
 
 
 
-    _updateGrounding() {
+    _updateGrounding(groundingOffset, modelHeight) {
+        if (!this.mesh || !this.chunkManager) return;
+
+        const offset = groundingOffset ?? enemyDefaultsConfig.GROUND_CHECK_OFFSET;
+        const height = modelHeight ?? (this.mesh.userData.legHeight || 0.5);
+
         const currentPosition = this.mesh.position;
-        _rayOrigin.set(currentPosition.x, currentPosition.y + enemyDefaultsConfig.GROUND_CHECK_OFFSET, currentPosition.z);
+        _rayOrigin.set(currentPosition.x, currentPosition.y + offset, currentPosition.z);
         groundRaycaster.set(_rayOrigin, downVector);
         const nearbyTerrain = this.chunkManager.getTerrainMeshesNear(currentPosition);
         const intersects = groundRaycaster.intersectObjects(nearbyTerrain);
@@ -109,10 +114,9 @@ export class Enemy {
             this.lastGroundY = intersects[0].point.y;
             const smoothFactor = enemyDefaultsConfig.GROUND_SMOOTHING_FACTOR;
             this.currentGroundY = this.currentGroundY * (1.0 - smoothFactor) + this.lastGroundY * smoothFactor;
-            const legHeight = this.mesh.userData.legHeight || 0.5;
-            this.mesh.position.y = this.currentGroundY + legHeight / 2;
+            this.mesh.position.y = this.currentGroundY + height / 2;
         } else {
-             this.mesh.position.y = this.currentGroundY + (this.mesh.userData.legHeight || 0.5) / 2;
+            this.mesh.position.y = this.currentGroundY + height / 2;
         }
     }
 
@@ -294,6 +298,25 @@ export class Enemy {
             }
         } else {
             logger.error(`[Enemy ${this.type}] Cannot reset mesh properties, mesh is null!`);
+        }
+    }
+
+    dispose() {
+        if (this.mesh) {
+            this.removeFromScene();
+            this.mesh.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry?.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat?.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                }
+            });
+            this.mesh = null;
         }
     }
 }

@@ -57,7 +57,11 @@ export const modelsConfig = {
         FALLBACK_TRUNK_ROUGHNESS: 0.9,
         FALLBACK_FOLIAGE_COLOR: 0x228B22,
         FALLBACK_FOLIAGE_ROUGHNESS: 0.7,
-        ALLOW_WALK_UNDER: true
+        ALLOW_WALK_UNDER: true,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -80,7 +84,11 @@ export const modelsConfig = {
         BACK_LEG_Z_FACTOR: 0.6,
         GEOMETRY_DETAIL: 2,
         COLLISION_WIDTH_FACTOR: 1.0,
-        COLLISION_DEPTH_FACTOR: 1.0
+        COLLISION_DEPTH_FACTOR: 1.0,
+        collision: {
+            type: 'enemy',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -109,7 +117,11 @@ export const modelsConfig = {
         TAIL_SEGMENT_WIDTH_FACTOR: 0.7,
         GEOMETRY_DETAIL: 2,
         COLLISION_WIDTH_FACTOR: 1.0,
-        COLLISION_DEPTH_FACTOR: 1.0
+        COLLISION_DEPTH_FACTOR: 1.0,
+        collision: {
+            type: 'enemy',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -145,14 +157,42 @@ export const modelsConfig = {
         ANTLER_RIGHT_ROTATION_Y: Math.PI,
         GEOMETRY_DETAIL: 2,
         COLLISION_WIDTH_FACTOR: 1.0,
-        COLLISION_DEPTH_FACTOR: 1.0
+        COLLISION_DEPTH_FACTOR: 1.0,
+        collision: {
+            type: 'enemy',
+            effect: 'damagePlayer'
+        }
     },
 
 
     ROCK_DESERT: {
         GEO_KEY: 'rockDesertGeo',
         MATERIAL_KEY: 'rockMaterial',
-        COLLISION_RADIUS: 1.5
+        COLLISION_RADIUS: 1.5,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
+    },
+
+    ROCK_SMALL: {
+        GEO_KEY: 'rockSmallGeo',
+        MATERIAL_KEY: 'rockMaterial',
+        COLLISION_RADIUS: 1.2,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
+    },
+
+    ROCK_LARGE: {
+        GEO_KEY: 'rockLargeGeo',
+        MATERIAL_KEY: 'rockMaterial',
+        COLLISION_RADIUS: 2.5,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -163,7 +203,11 @@ export const modelsConfig = {
         ARM_RADIUS_BOTTOM: 0.3, ARM_RADIUS_TOP: 0.4, ARM_HEIGHT: 3, ARM_SEGMENTS: 6,
         ARM1_X_POS: 0.6, ARM1_Y_POS: 5, ARM1_Z_ROT: -Math.PI / 4, ARM1_Y_ROT: Math.PI / 8,
         ARM2_X_POS: -0.6, ARM2_Y_POS: 6, ARM2_Z_ROT: Math.PI / 4, ARM2_Y_ROT: -Math.PI / 8,
-        COLLISION_RADIUS: 0.8
+        COLLISION_RADIUS: 0.8,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -172,7 +216,11 @@ export const modelsConfig = {
         GEO_KEY: 'cactusBarrelGeo',
         FALLBACK_RADIUS_BOTTOM: 1.0, FALLBACK_RADIUS_TOP: 1.2, FALLBACK_HEIGHT: 1.5, FALLBACK_SEGMENTS: 12,
         Y_POS_FACTOR: 0.5,
-        COLLISION_RADIUS: 1.2
+        COLLISION_RADIUS: 1.2,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -186,7 +234,11 @@ export const modelsConfig = {
         ROOF_DEPTH: 4,
         ROOF_Y_OFFSET: -0.25, // Relative to building height
         ROOF_Z_OFFSET_FACTOR: -0.63,
-        COLLISION_RADIUS: 6.0
+        COLLISION_RADIUS: 6.0,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -198,7 +250,11 @@ export const modelsConfig = {
         SIGN_WIDTH: 3, SIGN_HEIGHT: 0.5, SIGN_DEPTH: 0.1,
         SIGN_Y_POS: 4.5,
         SIGN_ROTATION_Z: Math.PI / 4,
-        COLLISION_RADIUS: 0.3
+        COLLISION_RADIUS: 0.3,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -207,7 +263,11 @@ export const modelsConfig = {
         FALLBACK_RADIUS: 0.5, FALLBACK_DETAIL: 0,
         COLOR: 0xFFFACD,
         ROUGHNESS: 0.6,
-        COLLISION_RADIUS: 0.5
+        COLLISION_RADIUS: 0.5,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -216,7 +276,11 @@ export const modelsConfig = {
         FALLBACK_RADIUS: 0.8, FALLBACK_DETAIL: 0,
         COLOR: 0xBC8F8F,
         ROUGHNESS: 0.9,
-        COLLISION_RADIUS: 1.0
+        COLLISION_RADIUS: 1.0,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -225,7 +289,11 @@ export const modelsConfig = {
         GEO_KEY: 'wagonWheelGeo',
         FALLBACK_RADIUS: 1.0, FALLBACK_TUBE_RADIUS: 0.15, FALLBACK_RADIAL_SEGMENTS: 6, FALLBACK_TUBULAR_SEGMENTS: 12,
         ROTATION_X: Math.PI / 2,
-        COLLISION_RADIUS: 1.0
+        COLLISION_RADIUS: 1.0,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -242,7 +310,11 @@ export const modelsConfig = {
         OPENING_HEIGHT_FACTOR: 0.917,
         OPENING_Y_POS_FACTOR: 0.458,
         OPENING_Z_POS: 0.3,
-        COLLISION_RADIUS: 2.5
+        COLLISION_RADIUS: 2.5,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -253,16 +325,29 @@ export const modelsConfig = {
         LEG_WIDTH: 0.4, LEG_HEIGHT: 6, LEG_DEPTH: 0.4,
         LEG_Y_POS_FACTOR: 0.5,
         LEG_OFFSET: 2,
-        COLLISION_RADIUS: 2.5
+        COLLISION_RADIUS: 2.5,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
 
-    TUMBLEWEED_MODEL: {
+    TUMBLEWEED: {
         GEO_KEY: 'tumbleweedGeo',
-        FALLBACK_RADIUS: 1.0, FALLBACK_DETAIL: 1,
         COLOR: 0xAD8B60,
-        ROUGHNESS: 0.8,
-        COLLISION_RADIUS: 1.0
+        ROUGHNESS: 0.9,
+        BRANCH_COUNT: 12,
+        BRANCH_RADIUS: 0.08,
+        BRANCH_LENGTH_MIN: 1.5,
+        BRANCH_LENGTH_MAX: 2.5,
+        BRANCH_SEGMENTS: 8,
+        COLLISION_RADIUS: 1.0,
+        SOLID_OBSTACLE_COLLISION_RADIUS: 1.5,
+        collision: {
+            type: 'solidObstacle',
+            effect: 'impede'
+        }
     },
 
 
@@ -294,7 +379,11 @@ export const modelsConfig = {
         TAIL_SEGMENT_WIDTH_FACTOR: 0.15,
         TAIL_ANGLE_INCREMENT: Math.PI / 20,
         GEOMETRY_DETAIL: 2,
-        COLLISION_RADIUS: 0.8
+        COLLISION_RADIUS: 0.8,
+        collision: {
+            type: 'enemy',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -323,7 +412,11 @@ export const modelsConfig = {
         RATTLE_COLOR: 0xAAAAAA, RATTLE_ROUGHNESS: 0.9,
         RATTLE_SIZE_START: 0.15, RATTLE_SIZE_DECREMENT: 0.02, RATTLE_SEGMENTS_DETAIL: 6,
         RATTLE_Z_OFFSET_FACTOR: 0.15,
-        COLLISION_RADIUS: 0.4
+        COLLISION_RADIUS: 0.4,
+        collision: {
+            type: 'enemy',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -355,7 +448,11 @@ export const modelsConfig = {
         LEG_Y_POS: 0.1, LEG_ROTATION_Z: Math.PI / 4,
         LEG_POSITIONS: [ { x: 0.35, z: -0.3 }, { x: 0.35, z: 0 }, { x: 0.35, z: 0.3 }, { x: 0.35, z: 0.6 } ],
         GEOMETRY_DETAIL: 2,
-        COLLISION_RADIUS: 0.4
+        COLLISION_RADIUS: 0.4,
+        collision: {
+            type: 'enemy',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -384,7 +481,11 @@ export const modelsConfig = {
         TAIL_WIDTH: 0.6, TAIL_HEIGHT: 0.1, TAIL_DEPTH: 0.8, TAIL_ROUGHNESS: 0.8,
         TAIL_Y_POS: 0, TAIL_Z_POS: 1.0,
         GEOMETRY_DETAIL: 2,
-        COLLISION_RADIUS: 0.5
+        COLLISION_RADIUS: 0.5,
+        collision: {
+            type: 'enemy',
+            effect: 'damagePlayer'
+        }
     },
 
 
@@ -400,7 +501,22 @@ export const modelsConfig = {
         TILTED_GROUP_ROTATION_Z: Math.PI / 6,
         TILTED_GROUP_ROTATION_Y: Math.PI / 12,
         COLLISION_RADIUS: 1.0,
-        POWERUP_TYPE: 'magnet'
+        POWERUP_TYPE: 'magnet',
+        collision: {
+            type: 'collectible',
+            effect: 'collectPowerup',
+            powerupType: 'magnet'
+        }
+    },
+
+    LOG_FALLEN: {
+        GEO_KEY: 'logFallenGeo',
+        MATERIAL_KEY: 'logMaterial',
+        COLLISION_RADIUS: 0.5,
+        collision: {
+            type: 'obstacle',
+            effect: 'damagePlayer'
+        }
     },
 
     // --- Doubler ---
@@ -412,7 +528,12 @@ export const modelsConfig = {
         DOUBLER_METALNESS: 0.6,
         DOUBLER_ROUGHNESS: 0.2,
         COLLISION_RADIUS: 1.0,
-        POWERUP_TYPE: 'doubler'
+        POWERUP_TYPE: 'doubler',
+        collision: {
+            type: 'collectible',
+            effect: 'collectPowerup',
+            powerupType: 'doubler'
+        }
     },
 
     // --- Invisibility ---
@@ -434,6 +555,21 @@ export const modelsConfig = {
         PARTICLE_SIZE_FACTOR: 0.1,
         PARTICLE_ORBIT_RADIUS: 0.9,
         COLLISION_RADIUS: 1.0,
-        POWERUP_TYPE: 'invisibility'
+        POWERUP_TYPE: 'invisibility',
+        collision: {
+            type: 'collectible',
+            effect: 'collectPowerup',
+            powerupType: 'invisibility'
+        }
     },
+
+    // --- Coin ---
+    COIN: {
+        OBJECT_TYPE: 'coin',
+        COLLISION_RADIUS: 0.5,
+        collision: {
+            type: 'collectible',
+            effect: 'collectCoin'
+        }
+    }
 };

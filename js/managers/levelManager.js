@@ -1,5 +1,4 @@
 // js/managers/levelManager.js
-import * as UIManager from './uiManager.js'; // Stays in managers
 import * as AssetManager from './assetManager.js'; // Stays in managers
 import { createLogger } from '../utils/logger.js'; // Import logger
 import eventBus from '../core/eventBus.js';
@@ -23,16 +22,16 @@ let enemyManagerInstance = null; // Reference to EnemyManager
  */
 export async function loadLevel(levelId) { // levelId is now a string
     logger.info(`Loading level: ${levelId}`);
-    let configModule;
+    let configModule, rawConfig;
     try {
         switch (levelId) {
             case 'level1':
                 configModule = await import('../levels/level1_forest.js'); // Updated path
-                currentLevelConfig = configModule.level1Config;
+                rawConfig = configModule.level1Config;
                 break;
             case 'level2':
                 configModule = await import('../levels/level2_desert.js'); // Updated path
-                currentLevelConfig = configModule.level2Config;
+                rawConfig = configModule.level2Config;
                 break;
             // Add cases for future levels here
             default:
@@ -42,14 +41,29 @@ export async function loadLevel(levelId) { // levelId is now a string
                 return false;
         }
 
+        if (rawConfig) {
+            currentLevelConfig = {
+                ...rawConfig,
+                terrain: {
+                    NOISE_FREQUENCY: rawConfig.NOISE_FREQUENCY,
+                    NOISE_AMPLITUDE: rawConfig.NOISE_AMPLITUDE,
+                    TERRAIN_COLOR: rawConfig.TERRAIN_COLOR
+                }
+            };
+        } else {
+            currentLevelConfig = null;
+        }
+
         if (!currentLevelConfig) {
-             // Use UI Manager for critical config load failure
-             UIManager.displayError(new Error(`[LevelManager] Failed to load config object for level ${levelId}`));
+             // Use event bus for critical config load failure
+             eventBus.emit('errorOccurred', `[LevelManager] Failed to load config object for level ${levelId}`);
              currentLevelId = null;
              return false;
         }
 
         currentLevelId = levelId;
+        const levelName = AVAILABLE_LEVELS.find(level => level.id === levelId)?.name || 'Unknown Level';
+        eventBus.emit('levelStarted', levelName);
         // Asset initialization is now handled by Game.init() after level loading
         if (!currentLevelConfig) {
             logger.error("[LevelManager] Cannot proceed, config is null.");
@@ -63,8 +77,8 @@ export async function loadLevel(levelId) { // levelId is now a string
         return true;
 
     } catch (error) {
-        // Use UI Manager for critical level load failure
-        UIManager.displayError(new Error(`[LevelManager] Error loading level ${levelId}: ${error.message}`));
+        // Use event bus for critical level load failure
+        eventBus.emit('errorOccurred', `[LevelManager] Error loading level ${levelId}: ${error.message}`);
         currentLevelConfig = null;
         currentLevelId = null;
         return false;
