@@ -21,6 +21,7 @@ import sceneTransitionManager from '../managers/sceneTransitionManager.js';
 import atmosphericManager from '../managers/atmosphericManager.js';
 import { initScene } from '../rendering/sceneSetup.js';
 import { initCollisionManager } from '../managers/collisionManager.js';
+import { noise2D } from '../rendering/terrainGenerator.js';
 
 const logger = createLogger('Game');
 
@@ -65,6 +66,7 @@ class Game {
         this.eventBus = eventBus;
         this.animationFrameId = null;
         this.lastRenderFrameTime = 0; // For throttling renders in certain states
+        this.powerupMaterials = {}; // Cache for powerup materials
 
         // Bind animate method once to prevent memory issues
         this.boundAnimate = this.animate.bind(this);
@@ -179,13 +181,16 @@ class Game {
             if (type === gameplayConfig.POWERUP_TYPE_MAGNET && player && player.model) {
                 logger.info(`Applying ${type} powerup visual effect to player`);
 
-                // Create a new material for the magnet powerup effect
-                const magnetMaterial = new THREE.MeshStandardMaterial({
-                    color: gameplayConfig.MAGNET_EFFECT_COLOR,
-                    emissive: gameplayConfig.MAGNET_EFFECT_EMISSIVE,
-                    metalness: gameplayConfig.MAGNET_EFFECT_METALNESS,
-                    roughness: gameplayConfig.MAGNET_EFFECT_ROUGHNESS
-                });
+                let magnetMaterial = this.powerupMaterials.magnet;
+                if (!magnetMaterial) {
+                    magnetMaterial = new THREE.MeshStandardMaterial({
+                        color: gameplayConfig.MAGNET_EFFECT_COLOR,
+                        emissive: gameplayConfig.MAGNET_EFFECT_EMISSIVE,
+                        metalness: gameplayConfig.MAGNET_EFFECT_METALNESS,
+                        roughness: gameplayConfig.MAGNET_EFFECT_ROUGHNESS
+                    });
+                    this.powerupMaterials.magnet = magnetMaterial;
+                }
 
                 // Apply the material to all meshes in the player model
                 player.model.traverse(child => {
@@ -200,13 +205,16 @@ class Game {
             } else if (type === gameplayConfig.POWERUP_TYPE_DOUBLER && player && player.model) {
                 logger.info(`Applying ${type} powerup visual effect to player`);
 
-                // Create a new material for the doubler powerup effect
-                const doublerMaterial = new THREE.MeshStandardMaterial({
-                    color: gameplayConfig.DOUBLER_EFFECT_COLOR,
-                    emissive: gameplayConfig.DOUBLER_EFFECT_EMISSIVE,
-                    metalness: gameplayConfig.DOUBLER_EFFECT_METALNESS,
-                    roughness: gameplayConfig.DOUBLER_EFFECT_ROUGHNESS
-                });
+                let doublerMaterial = this.powerupMaterials.doubler;
+                if (!doublerMaterial) {
+                    doublerMaterial = new THREE.MeshStandardMaterial({
+                        color: gameplayConfig.DOUBLER_EFFECT_COLOR,
+                        emissive: gameplayConfig.DOUBLER_EFFECT_EMISSIVE,
+                        metalness: gameplayConfig.DOUBLER_EFFECT_METALNESS,
+                        roughness: gameplayConfig.DOUBLER_EFFECT_ROUGHNESS
+                    });
+                    this.powerupMaterials.doubler = doublerMaterial;
+                }
 
                 // Apply the material to all meshes in the player model
                 player.model.traverse(child => {
@@ -271,15 +279,18 @@ class Game {
             } else if (type === gameplayConfig.POWERUP_TYPE_INVISIBILITY && player && player.model) {
                 logger.info(`Applying ${type} powerup visual effect to player`);
                 
-                // Create a new material for the invisibility powerup effect
-                const invisibilityMaterial = new THREE.MeshStandardMaterial({
-                    color: gameplayConfig.INVISIBILITY_EFFECT_COLOR,
-                    emissive: gameplayConfig.INVISIBILITY_EFFECT_EMISSIVE,
-                    metalness: gameplayConfig.INVISIBILITY_EFFECT_METALNESS,
-                    roughness: gameplayConfig.INVISIBILITY_EFFECT_ROUGHNESS,
-                    transparent: true,
-                    opacity: gameplayConfig.INVISIBILITY_EFFECT_OPACITY
-                });
+                let invisibilityMaterial = this.powerupMaterials.invisibility;
+                if (!invisibilityMaterial) {
+                    invisibilityMaterial = new THREE.MeshStandardMaterial({
+                        color: gameplayConfig.INVISIBILITY_EFFECT_COLOR,
+                        emissive: gameplayConfig.INVISIBILITY_EFFECT_EMISSIVE,
+                        metalness: gameplayConfig.INVISIBILITY_EFFECT_METALNESS,
+                        roughness: gameplayConfig.INVISIBILITY_EFFECT_ROUGHNESS,
+                        transparent: true,
+                        opacity: gameplayConfig.INVISIBILITY_EFFECT_OPACITY
+                    });
+                    this.powerupMaterials.invisibility = invisibilityMaterial;
+                }
                 
                 // Apply the material to all meshes in the player model
                 player.model.traverse(child => {
@@ -569,6 +580,16 @@ class Game {
         }
 
         // Dispose of Three.js resources
+        if (this.powerupMaterials) {
+            for (const key in this.powerupMaterials) {
+                if (this.powerupMaterials[key] && typeof this.powerupMaterials[key].dispose === 'function') {
+                    this.powerupMaterials[key].dispose();
+                    logger.debug(`Disposed cached powerup material: ${key}`);
+                }
+            }
+            this.powerupMaterials = {}; // Clear the cache
+        }
+
         if (this.renderer) {
             this.renderer.dispose();
             this.renderer = null;
@@ -645,7 +666,7 @@ class Game {
         }
 
         // Position player on terrain before starting camera transition
-        await this._positionPlayerOnTerrain();
+        // await this._positionPlayerOnTerrain(); // This call is redundant, _loadLevel will also call it.
 
         // Start camera transition
         this.cameraManager.startTransitionToGameplay(this.camera.position, this.camera.quaternion);
@@ -893,8 +914,7 @@ class Game {
             return;
         }
 
-        // Import the noise2D function for terrain height calculation
-        const { noise2D } = await import('../rendering/terrainGenerator.js');
+        // noise2D is now imported at the top of the module
 
         // Get player position
         const playerPos = this.player.model.position;
