@@ -13,6 +13,7 @@ const HIGH_SCORES_BY_LEVEL_KEY = 'openRunner_highScoresByLevel';
 let globalHighScore = 0;
 let highScoresByLevel = {};
 let currentScore = 0; // Add state for current score
+let sessionScore = 0; // Track cumulative score across levels in a session
 
 /**
  * Initialize the score manager
@@ -22,6 +23,7 @@ export function init() {
     logger.debug('Initializing ScoreManager');
     loadHighScores();
     currentScore = 0; // Ensure score is reset on init
+    sessionScore = 0; // Reset session score on init
 }
 
 /**
@@ -74,16 +76,31 @@ export function getCurrentScore() {
 }
 
 /**
+ * Get the session score (cumulative across levels).
+ * @returns {number} The session score.
+ */
+export function getSessionScore() {
+    return sessionScore;
+}
+
+/**
  * Resets the current live score to 0.
  * Emits 'currentScoreUpdated' event to update UI.
+ * @param {boolean} resetSession - Whether to also reset the session score (default: true)
  */
-export function resetCurrentScore() {
+export function resetCurrentScore(resetSession = true) {
     currentScore = 0;
-    logger.debug('Current score reset to 0');
+    if (resetSession) {
+        sessionScore = 0;
+        logger.debug('Current and session score reset to 0');
+    } else {
+        logger.debug('Current score reset to 0, session score preserved');
+    }
 
     // Emit event to update UI
     eventBus.emit('currentScoreUpdated', {
-        score: 0,
+        score: currentScore,
+        sessionScore: sessionScore,
         levelId: LevelManager.getCurrentLevelId()
     });
 }
@@ -100,11 +117,22 @@ export function updateCurrentScore(increment) {
     }
 
     currentScore += increment;
-    logger.info(`Score updated by ${increment}. New score: ${currentScore}`);
+    sessionScore += increment;
+    
+    // Enforce maximum session score of 600 points
+    if (sessionScore > 600) {
+        const excess = sessionScore - 600;
+        currentScore -= excess;
+        sessionScore = 600;
+        logger.warn(`Session score capped at 600. Excess ${excess} points discarded.`);
+    }
+    
+    logger.info(`Score updated by ${increment}. Current: ${currentScore}, Session: ${sessionScore}`);
 
     // Emit event for UI and other listeners
     eventBus.emit('currentScoreUpdated', {
         score: currentScore,
+        sessionScore: sessionScore,
         levelId: LevelManager.getCurrentLevelId()
     });
 }
@@ -202,9 +230,9 @@ export function isLevelUnlocked(levelId) {
         return true;
     }
 
-    // For level2, check if player has a score in level1
+    // For level2, check if player has achieved 300 points in session
     if (levelId === 'level2') {
-        return highScoresByLevel['level1'] > 0 || globalHighScore > 0;
+        return sessionScore >= 300;
     }
 
     // For future levels, can implement more complex unlocking logic

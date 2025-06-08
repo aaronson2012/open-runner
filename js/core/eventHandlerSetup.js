@@ -71,7 +71,7 @@ export function setupEventHandlers(dependencies) {
         logger.info(`Score updated: ${oldScore} + ${scoreIncrement} = ${newScore}`);
 
         const currentLevelId = levelManager.getCurrentLevelId();
-        const currentScore = ScoreManager.getCurrentScore();
+        const currentScore = ScoreManager.getSessionScore(); // Use session score for transitions
         const transitionScore = getConfig('LEVEL1_TRANSITION_SCORE', 300);
         const currentState = gameStateManager.getCurrentState();
 
@@ -94,6 +94,8 @@ export function setupEventHandlers(dependencies) {
                             levelManager.unloadCurrentLevel();
                         }
 
+                        // Reset current score but preserve session score for level 2
+                        ScoreManager.resetCurrentScore(false); // false = don't reset session score
 
                         startGameCallback('level2');
                     }
