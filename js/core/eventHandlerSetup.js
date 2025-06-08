@@ -130,7 +130,7 @@ export function setupEventHandlers(dependencies) {
             ScoreManager.resetCurrentScore();
 
             if (uiManager) {
-                uiManager.updateScoreDisplay(0, false);
+                uiManager.updateScoreDisplay(0);
             }
 
             // Reset powerups through PlayerManager
@@ -205,7 +205,7 @@ export function setupEventHandlers(dependencies) {
         ScoreManager.resetCurrentScore();
         // Also directly update the UI score display to ensure it's reset
         if (dependencies.uiManager) {
-            dependencies.uiManager.updateScoreDisplay(0, false, true);
+            dependencies.uiManager.updateScoreDisplay(0);
         }
         logger.debug("Score reset when returning to title");
 

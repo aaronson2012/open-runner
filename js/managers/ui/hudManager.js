@@ -68,7 +68,7 @@ function handleGameStateChange({ newState }) {
 /**
  * Shows the main game HUD elements.
  */
-function showHUD() {
+export function showHUD() {
     updateScoreDisplay(currentScore);
     updateHighScoreDisplay(ScoreManager.getGlobalHighScore());
 
@@ -91,7 +91,7 @@ function showHUD() {
 /**
  * Hides all HUD elements.
  */
-function hideAll() {
+export function hideAll() {
     if (scoreElement) scoreElement.style.display = 'none';
     if (highScoreElement) highScoreElement.style.display = 'none';
 }
@@ -131,7 +131,7 @@ function checkForLiveHighScore({ score }) {
  * Updates the score display with a specific value.
  * @param {number} score - The score to display.
  */
-function updateScoreDisplay(score) {
+export function updateScoreDisplay(score) {
     currentScore = score;
     if (scoreElement) {
         const prefix = getConfig('ui.SCORE_PREFIX', 'Score: ');
@@ -143,7 +143,7 @@ function updateScoreDisplay(score) {
  * Updates the high score display.
  * @param {number} highScore - The high score to display.
  */
-function updateHighScoreDisplay(highScore) {
+export function updateHighScoreDisplay(highScore) {
     currentHighScore = highScore;
     if (highScoreElement) {
         const prefix = getConfig('ui.HIGH_SCORE_PREFIX', 'High Score: ');

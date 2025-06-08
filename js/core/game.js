@@ -347,11 +347,6 @@ class Game {
              this._updateSceneAppearance(this.currentLevelConfig, this.gameplayScene);
         }
 
-        // Start camera transition
-        this.cameraManager.startTransitionToGameplay(this.camera.position, this.camera.quaternion);
-
-        // Reset/Reconfigure Managers for the new scene
-        this.spatialGrid.clear();
         this.enemyManager.setScene(this.gameplayScene);
         this.chunkManager.setScene(this.gameplayScene);
         this.particleManager.setScene(this.gameplayScene);
