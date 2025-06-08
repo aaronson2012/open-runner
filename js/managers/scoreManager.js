@@ -100,7 +100,7 @@ export function updateCurrentScore(increment) {
     }
 
     currentScore += increment;
-    logger.debug(`Score updated by ${increment}. New score: ${currentScore}`);
+    logger.info(`Score updated by ${increment}. New score: ${currentScore}`);
 
     // Emit event for UI and other listeners
     eventBus.emit('currentScoreUpdated', {
@@ -115,6 +115,7 @@ export function updateCurrentScore(increment) {
  * @returns {number} The global high score
  */
 export function getGlobalHighScore() {
+    logger.debug(`getGlobalHighScore() returning: ${globalHighScore}`);
     return globalHighScore;
 }
 
@@ -159,9 +160,12 @@ export function updateHighScore(score, levelId = null, emitEvent = false) {
 
     // Update global high score if needed
     if (isNewGlobalHighScore(score)) {
+        const oldGlobalHighScore = globalHighScore;
         globalHighScore = score;
         isNewHighScore = true;
-        logger.debug(`New global high score set: ${score}`);
+        logger.info(`New global high score set: ${oldGlobalHighScore} -> ${score}`);
+    } else {
+        logger.info(`Score ${score} is not a new global high score (current: ${globalHighScore})`);
     }
 
     // Update level-specific high score if provided

@@ -12,6 +12,9 @@ import { initPlayerManager, getPlayerManager } from '../managers/playerManager.j
 
 const logger = createLogger('EventHandlerSetup');
 
+// Flag to prevent multiple death processing
+let playerDeathProcessing = false;
+
 /**
  * Sets up subscriptions to global events via the event bus.
  * Delegates actions to appropriate managers or emits further events.
@@ -64,6 +67,8 @@ export function setupEventHandlers(dependencies) {
 
         ScoreManager.updateCurrentScore(scoreIncrement);
 
+        const newScore = ScoreManager.getCurrentScore();
+        logger.info(`Score updated: ${oldScore} + ${scoreIncrement} = ${newScore}`);
 
         const currentLevelId = levelManager.getCurrentLevelId();
         const currentScore = ScoreManager.getCurrentScore();
@@ -103,30 +108,56 @@ export function setupEventHandlers(dependencies) {
 
     eventBus.subscribe('playerDied', () => {
         logger.info("Player Died event received.");
-        const currentLevelId = levelManager.getCurrentLevelId();
-        const currentScore = ScoreManager.getCurrentScore(); // Use imported module
         
-        // Pass true as the third parameter to emit the new high score event only at game over
-        const isNewHighScore = scoreManager.updateHighScore(currentScore, currentLevelId, true);
-        const highScore = scoreManager.getGlobalHighScore();
+        // Prevent multiple death processing
+        if (playerDeathProcessing) {
+            logger.info("Player death already being processed, ignoring duplicate event.");
+            return;
+        }
+        
+        playerDeathProcessing = true;
+        logger.info("Setting playerDeathProcessing flag to true.");
+        
+        // Defer player death processing by one frame to ensure all score events are processed first
+        setTimeout(() => {
+            const currentLevelId = levelManager.getCurrentLevelId();
+            const currentScore = ScoreManager.getCurrentScore(); // Use imported module
+            
+            logger.info(`Processing player death with final score: ${currentScore}`);
+            
+            // Pass true as the third parameter to emit the new high score event only at game over
+            const isNewHighScore = ScoreManager.updateHighScore(currentScore, currentLevelId, true);
+            const highScore = ScoreManager.getGlobalHighScore();
 
-        gameStateManager.setGameState(GameStates.GAME_OVER);
+            logger.info(`High score calculation: current=${currentScore}, high=${highScore}, isNew=${isNewHighScore}`);
+            
+            // Additional debugging: check localStorage values
+            const storedGlobalHighScore = localStorage.getItem('openRunner_highScore');
+            const storedLevelScores = localStorage.getItem('openRunner_highScoresByLevel');
+            logger.info(`Stored high scores - global: ${storedGlobalHighScore}, levels: ${storedLevelScores}`);
 
-        // Reset powerups through PlayerManager
-        playerManager.resetPowerups();
+            gameStateManager.setGameState(GameStates.GAME_OVER);
 
-        eventBus.emit('gameOver', {
-            score: currentScore,
-            highScore: highScore,
-            levelId: currentLevelId,
-            isNewHighScore: isNewHighScore
-        });
+            // Reset powerups through PlayerManager
+            playerManager.resetPowerups();
+
+            eventBus.emit('gameOver', {
+                score: currentScore,
+                highScore: highScore,
+                levelId: currentLevelId,
+                isNewHighScore: isNewHighScore
+            });
+        }, 10); // Use setTimeout with small delay to ensure all score events are processed
     });
 
     eventBus.subscribe('gameStateChanged', ({ newState, oldState }) => {
         logger.info(`Observed state changed to: ${newState} from ${oldState}`);
 
         if (newState === GameStates.TITLE) {
+            // Reset death processing flag when returning to title
+            playerDeathProcessing = false;
+            logger.info("Reset playerDeathProcessing flag to false.");
+            
             ScoreManager.resetCurrentScore();
 
             if (uiManager) {
@@ -136,6 +167,9 @@ export function setupEventHandlers(dependencies) {
             // Reset powerups through PlayerManager
             playerManager.resetPowerups();
         } else if (newState === GameStates.PLAYING) {
+            // Reset death processing flag when starting to play
+            playerDeathProcessing = false;
+            logger.info("Reset playerDeathProcessing flag to false for new game.");
         }
     });
 

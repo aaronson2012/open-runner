@@ -50,8 +50,6 @@ export function init() {
 
     // Other Elements
     levelListElement = document.getElementById('levelList');
-    gameOverScoreElement = document.getElementById('gameOverScore');
-    gameOverHighScoreElement = document.getElementById('gameOverHighScore');
 
     if (!titleScreenElement || !gameOverElement || !levelSelectScreenElement || !pauseMenuElement ||
         !startButtonElement || !levelSelectButtonElement || !backToTitleButtonElement ||
@@ -113,18 +111,14 @@ function showPauseMenu() {
 
 function showGameOverScreenWithScore(scoreData) {
     const { score, highScore, isNewHighScore } = scoreData;
+    
+    logger.info(`showGameOverScreenWithScore called with: score=${score}, highScore=${highScore}, isNewHighScore=${isNewHighScore}`);
 
     if (isNewHighScore) {
         eventBus.emit('notification', { message: `New High Score: ${highScore}!`, type: 'high-score' });
     }
 
     if (gameOverElement) {
-        if (gameOverScoreElement) {
-            gameOverScoreElement.textContent = `${getConfig('ui.SCORE_PREFIX', 'Score: ')}${score}`;
-        }
-        if (gameOverHighScoreElement) {
-            gameOverHighScoreElement.textContent = `${getConfig('ui.HIGH_SCORE_PREFIX', 'High Score: ')}${highScore}`;
-        }
         gameOverElement.style.display = 'flex';
     }
 }
