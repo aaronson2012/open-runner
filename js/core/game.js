@@ -28,6 +28,7 @@ import { ChunkManager } from '../managers/chunkManager.js';
 import { ParticleManager } from '../managers/particleManager.js';
 import { initCollisionManager } from '../managers/collisionManager.js';
 import powerupNotificationManager from '../managers/ui/powerupNotificationManager.js';
+import { debounce } from '../utils/debounce.js';
 
 const logger = createLogger('Game');
 
@@ -129,7 +130,7 @@ class Game {
         this._setupEventSubscriptions();
 
         // Setup global event listeners with proper references for cleanup
-        this.resizeHandler = () => this.cameraManager.handleResize();
+        this.resizeHandler = debounce(() => this.cameraManager.handleResize(), 250);
         window.addEventListener('resize', this.resizeHandler, false);
 
         // FPS toggle listener
