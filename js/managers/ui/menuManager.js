@@ -73,7 +73,6 @@ export function init() {
  * @param {object} eventData - The event object containing newState.
  */
 function handleGameStateChange({ newState }) {
-    logger.debug(`END-TO-END TEST: Game state changed to ${newState}`);
     // Hide all menus first
     titleScreenElement.style.display = 'none';
     gameOverElement.style.display = 'none';
@@ -165,7 +164,6 @@ function setupButton(buttonElement, id, callback) {
     if (updatedButton) {
         updatedButton.addEventListener('click', async () => {
             eventBus.emit('uiButtonClicked');
-            logger.debug(`END-TO-END TEST: Button #${id} clicked.`);
             callback();
         });
         logger.debug(`Event listener added to button #${id}`);

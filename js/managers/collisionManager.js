@@ -25,8 +25,6 @@ const playerCollisionRadius = playerConfig.TORSO_WIDTH; // Use imported constant
 let _spatialGrid = null;
 let _chunkManager = null;
 let _enemyManager = null;
-// let _scoreUpdater = null; // No longer needed, use eventBus
-// let _gameOverHandler = null; // No longer needed, use eventBus
 
 /**
  * Initializes the Collision Manager with necessary dependencies.
@@ -116,7 +114,6 @@ function checkPlayerCollisions(player) {
         if (distanceSq < collisionThresholdSq) {
             switch (collisionConfig.effect) {
                 case 'damagePlayer':
-                    logger.debug(`END-TO-END TEST: Collision detected with ${objectType}. Emitting playerDied event.`);
                     logger.info(`Player collided with ${collisionConfig.type} of type ${objectType}`);
                     eventBus.emit('playerDied', objectType);
                     return true;
@@ -132,7 +129,6 @@ function checkPlayerCollisions(player) {
                     if (_chunkManager.collectObject(chunkKey, objectIndex)) {
                         const coinValue = scoreValue || gameplayConfig.DEFAULT_COIN_SCORE;
                         const finalValue = player.powerup === 'doubler' ? coinValue * 2 : coinValue;
-                        logger.debug(`END-TO-END TEST: Coin collected. Value: ${finalValue}`);
                         eventBus.emit('scoreChanged', finalValue);
                         // No need to remove from nearbyObjects, as it's handled by chunkManager
                         logger.debug(`Collected coin with value ${finalValue}`);
@@ -142,7 +138,6 @@ function checkPlayerCollisions(player) {
                 case 'collectPowerup':
                     const { chunkKey: powerupChunkKey, objectIndex: powerupObjectIndex } = mesh.userData;
                     if (_chunkManager.collectObject(powerupChunkKey, powerupObjectIndex)) {
-                        logger.debug(`END-TO-END TEST: Power-up collected. Type: ${collisionConfig.powerupType}`);
                         const powerupType = collisionConfig.powerupType;
                         const powerupName = powerupType.charAt(0).toUpperCase() + powerupType.slice(1);
                         

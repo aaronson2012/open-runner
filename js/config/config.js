@@ -159,18 +159,7 @@ eventBus.subscribe('performanceSettingsChanged', (settings) => {
 // Export SECTIONS enum for use elsewhere
 export { SECTIONS };
 
-
 export { performanceManager };
-
 
 export default configManager;
 
-// NOTE: Individual constants (like PLAYER_SPEED) and section objects (like WORLD)
-// are NO LONGER exported from this file.
-// Modules should import the specific config file they need, e.g.:
-// import { playerConfig } from './player.js';
-// console.log(playerConfig.SPEED);
-// OR use the helper functions:
-// import { getConfig, getConfigSection, SECTIONS } from './config.js';
-// const speed = getConfig('player.SPEED');
-// const playerSection = getConfigSection(SECTIONS.PLAYER);

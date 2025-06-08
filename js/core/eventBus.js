@@ -146,9 +146,6 @@ class EventBus {
             } catch (error) {
                 hasErrors = true;
                 logger.error(`[EventBus] Error in listener for ${eventName}:`, error);
-                // Optionally remove listeners that throw errors to prevent future errors
-                // Uncomment the next line if you want to automatically remove problematic listeners
-                // listeners.delete(callback);
             }
         });
 

@@ -311,7 +311,6 @@ class Game {
      * @returns {Promise<void>}
      */
     async startGame(levelId) {
-        logger.debug(`END-TO-END TEST: startGame called with levelId: ${levelId}`);
         logger.info(`Starting level: ${levelId}`);
 
         // Stop any currently playing music FIRST, before anything else
@@ -512,7 +511,6 @@ class Game {
       */
      handleGlobalKeys(event) {
         const currentState = this.gameStateManager.getCurrentState();
-        logger.debug(`END-TO-END TEST: Key pressed: ${event.key} in state: ${currentState}`);
         logger.debug(`Key pressed: ${event.key} (lowercase: ${event.key.toLowerCase()}) in state: ${currentState}`);
 
         const lowerCaseKey = event.key.toLowerCase();

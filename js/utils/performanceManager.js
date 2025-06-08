@@ -1,6 +1,6 @@
 // js/utils/performanceManager.js
 
-import { createLogger, LogLevel } from './logger.js'; // Import LogLevel as well
+import { createLogger } from './logger.js';
 import eventBus from '../core/eventBus.js';
 
 const logger = createLogger('PerformanceManager');

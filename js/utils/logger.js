@@ -1,7 +1,3 @@
-// Default log level is set to INFO to reduce verbosity
-// For debugging, you can use the URL parameter ?logLevel=DEBUG to enable more detailed logging
-
-
 /**
  * Log levels enum
  * @readonly

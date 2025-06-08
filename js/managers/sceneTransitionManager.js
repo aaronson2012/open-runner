@@ -1,10 +1,10 @@
 // js/managers/sceneTransitionManager.js
 import * as THREE from 'three'; // Import THREE
-import { createLogger, LogLevel } from '../utils/logger.js'; // Stays in utils, import LogLevel
+import { createLogger } from '../utils/logger.js';
 import eventBus from '../core/eventBus.js'; // Moved to core
 import cameraManager from './cameraManager.js'; // Import CameraManager
 
-const logger = createLogger('SceneTransitionManager', LogLevel.DEBUG); // Use logger instance, set level to DEBUG
+const logger = createLogger('SceneTransitionManager');
 
 class SceneTransitionManager {
     constructor() {
@@ -12,7 +12,6 @@ class SceneTransitionManager {
         this.transitionStartTime = 0;
         this.transitionDuration = 0.3; // Reduced duration for faster transitions
         this.activeScene = null;
-        // this.gameplayScene = null; // No longer needed, pass target scene directly
         this.player = null; // Reference to the player object
         this.renderer = null; // Reference to the renderer
         this.camera = null; // Reference to the camera
@@ -25,7 +24,6 @@ class SceneTransitionManager {
     setRenderer(renderer) { this.renderer = renderer; }
     setCamera(camera) { this.camera = camera; }
     setPlayer(player) { this.player = player; }
-    // setActiveScene is handled internally during startTransition
 
     // --- Transition Control ---
     startTransition(targetScene) {

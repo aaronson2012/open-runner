@@ -1,14 +1,12 @@
 import * as THREE from 'three';
 import { cameraConfig } from '../config/camera.js';
 import { GameStates } from '../core/gameStateManager.js';
-import { createLogger, LogLevel } from '../utils/logger.js';
+import { createLogger } from '../utils/logger.js';
 import eventBus from '../core/eventBus.js';
 
-const logger = createLogger('CameraManager', LogLevel.DEBUG);
-
+const logger = createLogger('CameraManager');
 
 const TITLE_LOOK_AT_TARGET = new THREE.Vector3(0, 0, 0);
-
 
 const _targetPosition = new THREE.Vector3();
 const _cameraOffset = new THREE.Vector3();
@@ -16,7 +14,6 @@ const _rotatedOffset = new THREE.Vector3();
 const _targetQuaternion = new THREE.Quaternion();
 const _targetRotationMatrix = new THREE.Matrix4();
 const _newPosition = new THREE.Vector3();
-
 
 class CameraManager {
     constructor() {
@@ -34,10 +31,8 @@ class CameraManager {
 
         this.titleCameraDrift = null;
 
-
         this._lastGameplayPosition = null;
         this._lastGameplayLookAt = null;
-
 
         this._justCompletedTransition = false;
         this._transitionCompletionTime = 0;
@@ -45,13 +40,9 @@ class CameraManager {
         this._frameCountAfterTransition = 0;
         this._initialSmoothingFactor = 0.05; // Initial smoothing factor after transition
 
-
         this._lastPlayerPosition = null;
         this._firstPositionFrame = true;
-
     }
-
-
 
     setCamera(camera) {
         this.camera = camera;

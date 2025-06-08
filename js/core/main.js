@@ -12,7 +12,6 @@ const logger = createLogger('Main');
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', async () => {
-    logger.debug("END-TO-END TEST: DOMContentLoaded event fired.");
     logger.info("DOM fully loaded and parsed");
 
     try {

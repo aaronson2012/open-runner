@@ -1,15 +1,14 @@
 // js/physics/PhysicsComponent.js
 
-import * as THREE from 'three'; // Re-enabled THREE import
-// import Component from '../core/Component.js'; // Assuming Component is now in js/core/ - Core removed in Phase 2
-import { createLogger } from '../utils/logger.js'; // Stays in utils
+import * as THREE from 'three';
+import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('PhysicsComponent');
 
 /**
  * Component that adds basic physics behavior to a GameObject
  */
-export default class PhysicsComponent /* extends Component */ { // Base class removed
+export default class PhysicsComponent {
     /**
      * Create a new PhysicsComponent
      * @param {Object} [options={}] - Configuration options
@@ -24,10 +23,9 @@ export default class PhysicsComponent /* extends Component */ { // Base class re
      * @param {boolean} [options.isTrigger=false] - Whether the object is a trigger (no physical response)
      */
     constructor(options = {}) {
-        // super({ name: 'PhysicsComponent', ...options }); // Base class removed
-        this.name = 'PhysicsComponent'; // Manually set name
-        this.enabled = options.enabled !== undefined ? options.enabled : true; // Manually handle enabled
-        this.gameObject = null; // Manually initialize
+        this.name = 'PhysicsComponent';
+        this.enabled = options.enabled !== undefined ? options.enabled : true;
+        this.gameObject = null;
 
         const {
             velocity = new THREE.Vector3(),
