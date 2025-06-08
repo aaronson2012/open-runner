@@ -108,7 +108,7 @@ export function setupEventHandlers(dependencies) {
         
         // Pass true as the third parameter to emit the new high score event only at game over
         const isNewHighScore = scoreManager.updateHighScore(currentScore, currentLevelId, true);
-        const highScore = scoreManager.getLevelHighScore(currentLevelId);
+        const highScore = scoreManager.getGlobalHighScore();
 
         gameStateManager.setGameState(GameStates.GAME_OVER);
 
