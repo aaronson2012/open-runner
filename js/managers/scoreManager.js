@@ -1,6 +1,7 @@
 // js/managers/scoreManager.js
 import { BaseManager } from './BaseManager.js';
 import * as LevelManager from './levelManager.js'; // Import LevelManager
+import { debugConfig } from '../config/debug.js';
 
 // Constants
 const HIGH_SCORE_KEY = 'openRunner_highScore';
@@ -235,6 +236,11 @@ class ScoreManager extends BaseManager {
      * @returns {boolean} Whether the level is unlocked
      */
     isLevelUnlocked(levelId) {
+        // Check debug option first
+        if (debugConfig.UNLOCK_ALL_LEVELS) {
+            return true;
+        }
+
         // Level 1 is always unlocked
         if (levelId === 'level1') {
             return true;

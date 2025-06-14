@@ -1,5 +1,6 @@
 
 export const debugConfig = {
-    SHOW_FPS: false,
-    LOG_LEVEL: 'INFO'
+    showFPS: true,
+    LOG_LEVEL: 'INFO',
+    UNLOCK_ALL_LEVELS: true
 };

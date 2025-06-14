@@ -141,6 +141,7 @@ export function createFpsCounter() {
  */
 export function updateFpsCounter(fpsCounter, fps) {
     if (!fpsCounter) return;
+    
     // Use constants for text
     fpsCounter.textContent = `${renderingAdvancedConfig.FPS_COUNTER_PREFIX}${Math.round(fps)}${renderingAdvancedConfig.FPS_COUNTER_SEPARATOR}${performanceManager.currentQuality}`;
     fpsCounter.style.display = configManager.get('debug.showFPS') ? 'block' : 'none'; // Use configManager

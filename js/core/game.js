@@ -137,7 +137,7 @@ class Game {
         this.fpsToggleHandler = (event) => {
             if (event.key.toLowerCase() === controlsConfig.KEY_TOGGLE_FPS) {
                 const newFpsState = !configManager.get('debug.showFPS');
-                configManager.updateConfig('debug', { SHOW_FPS: newFpsState });
+                configManager.updateConfig('debug', { showFPS: newFpsState });
                 if (this.fpsCounter) {
                     this.fpsCounter.style.display = newFpsState ? 'block' : 'none';
                 }
