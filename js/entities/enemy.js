@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 import { enemyDefaultsConfig } from '../config/enemyDefaults.js';
 import eventBus from '../core/eventBus.js';
-import { smoothDamp } from '../utils/mathUtils.js';
+import { smoothDamp, getPooledVector, releaseVector } from '../utils/mathUtils.js';
+import { animationController } from '../animation/AnimationController.js';
 
 const logger = createLogger('Enemy');
 
@@ -16,12 +17,9 @@ const ENEMY_STATE = {
 
 const groundRaycaster = new THREE.Raycaster();
 const downVector = new THREE.Vector3(0, -1, 0);
-const _moveDirection = new THREE.Vector3();
-const _lookTargetPos = new THREE.Vector3();
 const _targetQuat = new THREE.Quaternion();
 const _lookAtMatrix = new THREE.Matrix4();
 const _roamingTargetVec = new THREE.Vector3();
-const _rayOrigin = new THREE.Vector3();
 
 
 export class Enemy {
@@ -105,8 +103,8 @@ export class Enemy {
         const height = modelHeight ?? (this.mesh.userData.legHeight || 0.5);
 
         const currentPosition = this.mesh.position;
-        _rayOrigin.set(currentPosition.x, currentPosition.y + offset, currentPosition.z);
-        groundRaycaster.set(_rayOrigin, downVector);
+        const rayOrigin = getPooledVector(currentPosition.x, currentPosition.y + offset, currentPosition.z);
+        groundRaycaster.set(rayOrigin, downVector);
         const nearbyTerrain = this.chunkManager.getTerrainMeshesNear(currentPosition);
         const intersects = groundRaycaster.intersectObjects(nearbyTerrain);
 
@@ -118,6 +116,8 @@ export class Enemy {
         } else {
             this.mesh.position.y = this.currentGroundY + height / 2;
         }
+
+        releaseVector(rayOrigin);
     }
 
     _updateState(playerPos, currentPowerup, deltaTime) {
@@ -177,12 +177,13 @@ export class Enemy {
         isMoving = !!targetPosition && this.roamingWaitTimer <= 0;
 
         if (isMoving && targetPosition) {
-            _moveDirection.subVectors(targetPosition, this.mesh.position);
-            _moveDirection.y = 0;
-            const distanceToTarget = _moveDirection.length();
+            const moveDirection = getPooledVector();
+            moveDirection.subVectors(targetPosition, this.mesh.position);
+            moveDirection.y = 0;
+            const distanceToTarget = moveDirection.length();
 
             if (distanceToTarget > enemyDefaultsConfig.MOVE_THRESHOLD) {
-                _moveDirection.normalize();
+                moveDirection.normalize();
                 const moveDistance = currentSpeed * deltaTime;
 
                 if (moveDistance >= distanceToTarget) {
@@ -195,15 +196,17 @@ export class Enemy {
                         isMoving = false;
                     }
                 } else {
-                    this.mesh.position.x += _moveDirection.x * moveDistance;
-                    this.mesh.position.z += _moveDirection.z * moveDistance;
+                    this.mesh.position.x += moveDirection.x * moveDistance;
+                    this.mesh.position.z += moveDirection.z * moveDistance;
                 }
 
-                if (_moveDirection.lengthSq() > enemyDefaultsConfig.LOOK_THRESHOLD_SQ) {
-                    _lookTargetPos.copy(this.mesh.position).add(_moveDirection);
-                    _lookAtMatrix.lookAt(this.mesh.position, _lookTargetPos, this.mesh.up);
+                if (moveDirection.lengthSq() > enemyDefaultsConfig.LOOK_THRESHOLD_SQ) {
+                    const lookTargetPos = getPooledVector();
+                    lookTargetPos.copy(this.mesh.position).add(moveDirection);
+                    _lookAtMatrix.lookAt(this.mesh.position, lookTargetPos, this.mesh.up);
                     _targetQuat.setFromRotationMatrix(_lookAtMatrix);
                     this.mesh.quaternion.slerp(_targetQuat, enemyDefaultsConfig.ROTATION_SLERP_FACTOR);
+                    releaseVector(lookTargetPos);
                 }
             } else {
                 if (this.state === ENEMY_STATE.ROAMING || this.state === ENEMY_STATE.RETURNING) {
@@ -213,6 +216,8 @@ export class Enemy {
                     isMoving = false;
                 }
             }
+
+            releaseVector(moveDirection);
         } else {
             isMoving = false;
         }
@@ -223,23 +228,12 @@ export class Enemy {
 
     _updateAnimation(elapsedTime, isMoving, currentSpeed) {
         if (this.mesh?.userData?.legs) {
-            const legs = this.mesh.userData.legs;
-            const animationSpeed = currentSpeed * enemyDefaultsConfig.ANIMATION_SPEED_FACTOR * (isMoving ? 1 : 0);
-            const legSwingAmplitude = enemyDefaultsConfig.LEG_SWING_AMPLITUDE;
-
-            if (isMoving && animationSpeed > 0) {
-                const phase = elapsedTime * animationSpeed;
-                legs.frontLeftLeg.rotation.x = Math.sin(phase) * legSwingAmplitude;
-                legs.backRightLeg.rotation.x = Math.sin(phase) * legSwingAmplitude;
-                legs.frontRightLeg.rotation.x = Math.sin(phase + Math.PI) * legSwingAmplitude;
-                legs.backLeftLeg.rotation.x = Math.sin(phase + Math.PI) * legSwingAmplitude;
-            } else {
-                const smoothTime = enemyDefaultsConfig.STOPPED_ANIMATION_SMOOTHING;
-                legs.frontLeftLeg.rotation.x = smoothDamp(legs.frontLeftLeg.rotation.x, 0, smoothTime, smoothTime);
-                legs.backRightLeg.rotation.x = smoothDamp(legs.backRightLeg.rotation.x, 0, smoothTime, smoothTime);
-                legs.frontRightLeg.rotation.x = smoothDamp(legs.frontRightLeg.rotation.x, 0, smoothTime, smoothTime);
-                legs.backLeftLeg.rotation.x = smoothDamp(legs.backLeftLeg.rotation.x, 0, smoothTime, smoothTime);
-            }
+            animationController.animateEnemyLegs(
+                this.mesh.userData.legs,
+                elapsedTime,
+                isMoving,
+                currentSpeed
+            );
         }
     }
 

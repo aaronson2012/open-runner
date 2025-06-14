@@ -54,23 +54,31 @@ const defaultConfig = {
 
 
 configManager.setDefaults(defaultConfig);
-configManager.registerConfig(SECTIONS.WORLD, worldConfig);
-configManager.registerConfig(SECTIONS.TERRAIN, terrainConfig);
-configManager.registerConfig(SECTIONS.PLAYER, playerConfig);
-configManager.registerConfig(SECTIONS.CAMERA, cameraConfig);
-configManager.registerConfig(SECTIONS.CONTROLS, controlsConfig);
-configManager.registerConfig(SECTIONS.RENDERING, renderingConfig);
-configManager.registerConfig(SECTIONS.GAMEPLAY, gameplayConfig);
-configManager.registerConfig(SECTIONS.TUMBLEWEED, tumbleweedConfig);
-configManager.registerConfig(SECTIONS.UI, uiConfig);
-configManager.registerConfig(SECTIONS.MODELS, modelsConfig);
-configManager.registerConfig(SECTIONS.PARTICLES, particleConfig);
-configManager.registerConfig(SECTIONS.RENDERING_ADVANCED, renderingAdvancedConfig);
-configManager.registerConfig(SECTIONS.ENEMY_DEFAULTS, enemyDefaultsConfig);
-configManager.registerConfig(SECTIONS.AUDIO, audioConfig);
-configManager.registerConfig(SECTIONS.MATERIALS, materialsConfig);
-configManager.registerConfig(SECTIONS.FALLBACK_GEOMETRIES, fallbackGeometriesConfig);
-configManager.registerConfig(SECTIONS.DEBUG, debugConfig);
+
+// Auto-register all configuration sections
+const configMap = {
+    [SECTIONS.WORLD]: worldConfig,
+    [SECTIONS.TERRAIN]: terrainConfig,
+    [SECTIONS.PLAYER]: playerConfig,
+    [SECTIONS.CAMERA]: cameraConfig,
+    [SECTIONS.CONTROLS]: controlsConfig,
+    [SECTIONS.RENDERING]: renderingConfig,
+    [SECTIONS.GAMEPLAY]: gameplayConfig,
+    [SECTIONS.TUMBLEWEED]: tumbleweedConfig,
+    [SECTIONS.UI]: uiConfig,
+    [SECTIONS.MODELS]: modelsConfig,
+    [SECTIONS.PARTICLES]: particleConfig,
+    [SECTIONS.RENDERING_ADVANCED]: renderingAdvancedConfig,
+    [SECTIONS.ENEMY_DEFAULTS]: enemyDefaultsConfig,
+    [SECTIONS.AUDIO]: audioConfig,
+    [SECTIONS.MATERIALS]: materialsConfig,
+    [SECTIONS.FALLBACK_GEOMETRIES]: fallbackGeometriesConfig,
+    [SECTIONS.DEBUG]: debugConfig,
+};
+
+Object.entries(configMap).forEach(([section, config]) => {
+    configManager.registerConfig(section, config);
+});
 
 logger.debug('Game configuration sections registered');
 

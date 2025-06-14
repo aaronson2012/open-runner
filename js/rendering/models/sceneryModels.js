@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { getAsset, getGeometry, getMaterial } from '../../managers/assetManager.js';
 import { createLogger } from '../../utils/logger.js';
 import { modelsConfig as C_MODELS } from '../../config/models.js';
+import { modelBuilder } from '../ModelBuilder.js';
 
 const logger = createLogger('SceneryModels');
 
@@ -218,14 +219,15 @@ export function createRailroadSignModel(properties) {
  * @returns {THREE.Group} The skull model group.
  */
 export function createSkullModel(properties) {
-    const group = new THREE.Group();
-    const config = C_MODELS.SKULL;
-    const geo = getAsset(config.GEO_KEY) || getGeometry('skull-fallback', () => new THREE.IcosahedronGeometry(config.FALLBACK_RADIUS, config.FALLBACK_DETAIL)); // Use asset or fallback
-    const mat = getMaterial('skull-mat', () => new THREE.MeshStandardMaterial({ color: config.COLOR, roughness: config.ROUGHNESS }));
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true;
-    group.add(mesh);
-    return group;
+    return modelBuilder
+        .withConfig(C_MODELS.SKULL)
+        .withProperties(properties)
+        .addMesh({
+            geometryKey: 'GEO_KEY',
+            geometryFallback: () => new THREE.IcosahedronGeometry(C_MODELS.SKULL.FALLBACK_RADIUS, C_MODELS.SKULL.FALLBACK_DETAIL),
+            materialFallback: () => new THREE.MeshStandardMaterial({ color: C_MODELS.SKULL.COLOR, roughness: C_MODELS.SKULL.ROUGHNESS })
+        })
+        .build();
 }
 
 /**
@@ -234,15 +236,15 @@ export function createSkullModel(properties) {
  * @returns {THREE.Group} The bush model group.
  */
 export function createDriedBushModel(properties) {
-    const group = new THREE.Group();
-    const config = C_MODELS.DRIED_BUSH;
-    const geo = getAsset(config.GEO_KEY) || getGeometry('dried-bush-fallback', () => new THREE.IcosahedronGeometry(config.FALLBACK_RADIUS, config.FALLBACK_DETAIL)); // Use asset or fallback
-    const mat = getMaterial('dried-bush-mat', () => new THREE.MeshStandardMaterial({ color: config.COLOR, roughness: config.ROUGHNESS }));
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    return group;
+    return modelBuilder
+        .withConfig(C_MODELS.DRIED_BUSH)
+        .withProperties(properties)
+        .addMesh({
+            geometryKey: 'GEO_KEY',
+            geometryFallback: () => new THREE.IcosahedronGeometry(C_MODELS.DRIED_BUSH.FALLBACK_RADIUS, C_MODELS.DRIED_BUSH.FALLBACK_DETAIL),
+            materialFallback: () => new THREE.MeshStandardMaterial({ color: C_MODELS.DRIED_BUSH.COLOR, roughness: C_MODELS.DRIED_BUSH.ROUGHNESS })
+        })
+        .build();
 }
 
 /**
@@ -251,17 +253,21 @@ export function createDriedBushModel(properties) {
  * @returns {THREE.Group} The wheel model group.
  */
 export function createWagonWheelModel(properties) {
-    const group = new THREE.Group();
-    const config = C_MODELS.WAGON_WHEEL;
-    const mat = getAsset(config.MATERIAL_KEY);
-    if (!mat) { logger.warn(`Missing ${config.MATERIAL_KEY} for wagon wheel`); return group; }
-    const geo = getAsset(config.GEO_KEY) || getGeometry('wagon-wheel-fallback', () => new THREE.TorusGeometry(config.FALLBACK_RADIUS, config.FALLBACK_TUBE_RADIUS, config.FALLBACK_RADIAL_SEGMENTS, config.FALLBACK_TUBULAR_SEGMENTS)); // Use asset or fallback
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.rotation.x = config.ROTATION_X;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    return group;
+    return modelBuilder
+        .withConfig(C_MODELS.WAGON_WHEEL)
+        .withProperties(properties)
+        .addMesh({
+            geometryKey: 'GEO_KEY',
+            geometryFallback: () => new THREE.TorusGeometry(
+                C_MODELS.WAGON_WHEEL.FALLBACK_RADIUS,
+                C_MODELS.WAGON_WHEEL.FALLBACK_TUBE_RADIUS,
+                C_MODELS.WAGON_WHEEL.FALLBACK_RADIAL_SEGMENTS,
+                C_MODELS.WAGON_WHEEL.FALLBACK_TUBULAR_SEGMENTS
+            ),
+            materialKey: 'MATERIAL_KEY',
+            rotation: { x: C_MODELS.WAGON_WHEEL.ROTATION_X, y: 0, z: 0 }
+        })
+        .build();
 }
 
 /**

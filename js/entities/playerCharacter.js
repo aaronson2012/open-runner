@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { playerConfig } from '../config/player.js';
+import { animationController } from '../animation/AnimationController.js';
 
 
 
@@ -207,38 +208,5 @@ export function createPlayerCharacter() {
  * @param {number} runSpeed - The speed factor for the animation frequency.
  */
 export function animatePlayerCharacter(parts, animationTime, runSpeed = 10) {
-    const {
-        leftArmGroup, rightArmGroup, leftLegGroup, rightLegGroup,
-        leftElbowGroup, rightElbowGroup, leftKneeGroup, rightKneeGroup
-    } = parts;
-
-
-    const frequency = runSpeed;
-    const armAmplitude = playerConfig.ARM_SWING_AMPLITUDE;
-    const legAmplitude = playerConfig.LEG_SWING_AMPLITUDE;
-    const elbowBendAmplitude = playerConfig.ELBOW_BEND_AMPLITUDE;
-    const kneeBendAmplitude = playerConfig.KNEE_BEND_AMPLITUDE;
-
-
-    const armSwing = Math.sin(animationTime * frequency) * armAmplitude;
-    const legSwing = Math.sin(animationTime * frequency) * legAmplitude;
-
-
-    if (leftArmGroup) leftArmGroup.rotation.x = legSwing;
-    if (rightArmGroup) rightArmGroup.rotation.x = -legSwing;
-    if (leftLegGroup) leftLegGroup.rotation.x = -armSwing;
-    if (rightLegGroup) rightLegGroup.rotation.x = armSwing;
-
-
-    const kneeBend = (Math.cos(animationTime * frequency + Math.PI) + 1) / 2 * kneeBendAmplitude;
-    const elbowBend = (Math.cos(animationTime * frequency) + 1) / 2 * elbowBendAmplitude;
-
-
-    if (leftKneeGroup) leftKneeGroup.rotation.x = -kneeBend;
-    if (rightKneeGroup) rightKneeGroup.rotation.x = -kneeBend;
-
-    if (leftElbowGroup) leftElbowGroup.rotation.x = elbowBend;
-    if (rightElbowGroup) rightElbowGroup.rotation.x = elbowBend;
-
-
+    animationController.animatePlayerCharacter(parts, animationTime, runSpeed);
 }

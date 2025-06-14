@@ -1,34 +1,51 @@
 import * as THREE from 'three';
-import eventBus from '../core/eventBus.js';
-import { createLogger } from '../utils/logger.js';
+import { BaseManager } from './BaseManager.js';
 import { gameplayConfig } from '../config/gameplay.js';
 import { playWaveFile, effectAudioMap } from './audioManager.js';
 import powerupNotificationManager from './ui/powerupNotificationManager.js';
 
-const logger = createLogger('PlayerManager');
-
 /**
  * Manages player state, powerups, and related functionality
  */
-class PlayerManager {
+class PlayerManager extends BaseManager {
     constructor(player) {
+        super('PlayerManager');
         this.player = player;
         this.powerupTimeout = null;
         
-        logger.info('PlayerManager initialized');
-        
-        // Set up event subscriptions
-        this._setupEventSubscriptions();
+        // Store player directly for compatibility and set up events
+        if (player) {
+            this.isInitialized = true;
+            this.setupEventSubscriptions();
+        }
+    }
+    
+    /**
+     * Validate player dependency
+     */
+    validateDependencies(config) {
+        if (!config.player) {
+            this.logger.error('PlayerManager requires a player object');
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Setup player management
+     */
+    async setupManager(config) {
+        this.player = config.player;
+        return true;
     }
     
     /**
      * Set up event subscriptions related to player management
-     * @private
      */
-    _setupEventSubscriptions() {
-        eventBus.subscribe('powerupCollected', this.handlePowerupCollected.bind(this));
-        eventBus.subscribe('resetPowerups', this.resetPowerups.bind(this));
-        logger.debug('PlayerManager event subscriptions set up');
+    setupEventSubscriptions() {
+        this.subscribeToEvent('powerupCollected', this.handlePowerupCollected);
+        this.subscribeToEvent('resetPowerups', this.resetPowerups);
+        this.logger.debug('PlayerManager event subscriptions set up');
     }
 
     /**
@@ -101,16 +118,11 @@ class PlayerManager {
     }
     
     /**
-     * Clean up resources when the manager is no longer needed
+     * Clean up player manager resources
      */
-    cleanup() {
+    cleanupManager() {
         this.resetPowerups();
-        
-        // Unsubscribe from events
-        eventBus.unsubscribe('powerupCollected', this.handlePowerupCollected);
-        eventBus.unsubscribe('resetPowerups', this.resetPowerups);
-        
-        logger.info('PlayerManager cleaned up');
+        this.player = null;
     }
 }
 
