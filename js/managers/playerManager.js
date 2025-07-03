@@ -3,6 +3,8 @@ import { BaseManager } from './BaseManager.js';
 import { gameplayConfig } from '../config/gameplay.js';
 import { playWaveFile, effectAudioMap } from './audioManager.js';
 import powerupNotificationManager from './ui/powerupNotificationManager.js';
+import { createLogger } from '../utils/logger.js';
+import eventBus from '../core/eventBus.js';
 
 /**
  * Manages player state, powerups, and related functionality
@@ -59,10 +61,10 @@ class PlayerManager extends BaseManager {
         playWaveFile(effectAudioMap['powerup']);
 
         if (wasActive) {
-            logger.info(`${powerupType} powerup already active, extending duration`);
+            this.logger.info(`${powerupType} powerup already active, extending duration`);
             if (this.powerupTimeout) clearTimeout(this.powerupTimeout);
         } else {
-            logger.info(`${powerupType} powerup started!`);
+            this.logger.info(`${powerupType} powerup started!`);
             eventBus.emit('powerupActivated', { type: powerupType, player: this.player });
         }
 
@@ -71,7 +73,7 @@ class PlayerManager extends BaseManager {
         this.powerupTimeout = setTimeout(() => {
             if (this.player.powerup === powerupType) {
                 this.player.powerup = '';
-                logger.info(`${powerupType} powerup expired!`);
+                this.logger.info(`${powerupType} powerup expired!`);
                 eventBus.emit('powerupDeactivated', { type: powerupType, player: this.player });
             }
             this.powerupTimeout = null;
@@ -85,7 +87,7 @@ class PlayerManager extends BaseManager {
         if (this.player.powerup) {
             const currentPowerup = this.player.powerup;
             this.player.powerup = '';
-            logger.debug(`Powerup ${currentPowerup} reset`);
+            this.logger.debug(`Powerup ${currentPowerup} reset`);
 
             eventBus.emit('powerupDeactivated', { type: currentPowerup, player: this.player });
         }
@@ -93,7 +95,7 @@ class PlayerManager extends BaseManager {
         if (this.powerupTimeout) {
             clearTimeout(this.powerupTimeout);
             this.powerupTimeout = null;
-            logger.debug("Powerup timeout cleared");
+            this.logger.debug("Powerup timeout cleared");
         }
     }
     
@@ -138,7 +140,7 @@ export function initPlayerManager(player) {
     if (!playerManagerInstance) {
         playerManagerInstance = new PlayerManager(player);
     } else {
-        logger.warn('PlayerManager already initialized, returning existing instance');
+        playerManagerInstance.logger.warn('PlayerManager already initialized, returning existing instance');
     }
     return playerManagerInstance;
 }
@@ -149,6 +151,7 @@ export function initPlayerManager(player) {
  */
 export function getPlayerManager() {
     if (!playerManagerInstance) {
+        const logger = createLogger('PlayerManager');
         logger.warn('PlayerManager not initialized, call initPlayerManager first');
     }
     return playerManagerInstance;
@@ -161,6 +164,7 @@ export function resetPlayerManager() {
     if (playerManagerInstance) {
         playerManagerInstance.cleanup();
         playerManagerInstance = null;
+        const logger = createLogger('PlayerManager');
         logger.debug('PlayerManager instance reset');
     }
 }
