@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Runner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Use emoji favicon as a fallback until a proper favicon.ico is created -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏃</text></svg>">
+    <style>
+        /* Basic styles directly in HTML for initial setup */
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <div id="interaction-screen" class="ui-overlay" style="display: none;" role="dialog" aria-labelledby="interaction-title">
+        <h2 id="interaction-title" class="sr-only">User Interaction Required</h2>
+        <p class="interaction-text">Tap the screen or press any key to continue.</p>
+    </div>
+    <div id="loadingScreen" class="ui-overlay" role="progressbar" aria-labelledby="loading-title" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <h2 id="loading-title" class="sr-only">Loading Game</h2>
+        <div id="progressBarContainer">
+            <div id="progressBar"></div>
+        </div>
+        <span id="progressText" aria-live="polite">Loading... 0%</span>
+    </div>
+    <div id="titleScreen" class="ui-overlay" style="display: none;" role="main" aria-labelledby="game-title"> <!-- Initially hidden -->
+        <h1 id="game-title">Open Runner</h1>
+        <div class="title-buttons" role="navigation" aria-label="Main menu">
+            <button id="startButton" aria-describedby="start-description">Start Game</button>
+            <button id="levelSelectButton" aria-describedby="level-description">Select Level</button>
+            <div id="start-description" class="sr-only">Begin a new game from level 1</div>
+            <div id="level-description" class="sr-only">Choose a specific level to play</div>
+        </div>
+    </div>
+    <div id="levelSelectScreen" class="ui-overlay" style="display: none;" role="dialog" aria-labelledby="level-select-title">
+        <h2 id="level-select-title">Select Level</h2>
+        <ul id="levelList" role="menu" aria-label="Available game levels">
+            <!-- Level buttons will be added here by uiManager.js -->
+        </ul>
+        <button id="backToTitleButton" class="back-button" aria-label="Return to main menu">Back to Title</button>
+    </div>
+
+    <div id="game-container" role="application" aria-label="3D Game Canvas">
+      <canvas id="gameCanvas" role="img" aria-label="Game world display"></canvas>
+    </div>
+    <div id="scoreDisplay" style="display: none;" role="status" aria-live="polite" aria-label="Current score">Score: 0</div>
+    <div id="highScoreDisplay" style="display: none;" role="status" aria-label="High score">High Score: 0</div>
+    <div id="gameOverDisplay" class="ui-overlay" style="display: none;" role="dialog" aria-labelledby="game-over-title">
+        <h2 id="game-over-title">GAME OVER!</h2>
+        <div class="menu-buttons" role="group" aria-label="Game over options">
+            <button id="gameOverRestartButton" aria-describedby="restart-description">Restart Level</button>
+            <button id="gameOverTitleButton" aria-describedby="title-description">Return to Title</button>
+            <div id="restart-description" class="sr-only">Play the current level again</div>
+            <div id="title-description" class="sr-only">Go back to the main menu</div>
+        </div>
+    </div> <!-- Game Over Display -->
+
+    <!-- Mobile Controls -->
+    <div id="mobileControls" role="group" aria-label="Mobile game controls">
+        <button id="mobilePauseBtn" class="mobile-button mobile-pause" aria-label="Pause game">⏸️</button>
+        <div class="mobile-steering-controls" role="group" aria-label="Steering controls">
+            <button id="mobileLeftBtn" class="mobile-button" aria-label="Move left">◀</button>
+            <button id="mobileRightBtn" class="mobile-button" aria-label="Move right">▶</button>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pauseMenu" class="ui-overlay" style="display: none;" role="dialog" aria-labelledby="pause-title">
+        <h2 id="pause-title">Paused</h2>
+        <div class="menu-buttons" role="group" aria-label="Pause menu options">
+            <button id="resumeButton">Resume Game</button>
+            <button id="restartButton">Restart Level</button>
+            <button id="returnToTitleButton">Return to Title</button>
+        </div>
+    </div>
+
+    <!-- Import Map for Three.js Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./lib/three/build/three.module.js",
+            "three/addons/": "./lib/three/examples/jsm/",
+            "simplex-noise": "./lib/simplex-noise/dist/esm/simplex-noise.js"
+        }
+    }
+    </script>
+
+    <!-- Main Game Logic -->
+    <script type="module" src="js/core/main.js"></script>
+</body>
+</html>

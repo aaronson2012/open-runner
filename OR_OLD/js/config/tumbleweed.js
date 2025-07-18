@@ -1,0 +1,57 @@
+// js/config/tumbleweed.js
+
+export const tumbleweedConfig = {
+    // General
+    OBJECT_TYPE_NAME: 'tumbleweed',
+
+    // PhysicsComponent properties
+    MASS: 5,
+    FRICTION: 0.8,
+    RESTITUTION: 0.3,
+    USE_GRAVITY: true,
+    GRAVITY_FORCE: 9.8,
+
+    // Visuals - Main Mesh
+    MAIN_GEOMETRY_RADIUS: 1,
+    MAIN_GEOMETRY_DETAIL: 2,
+    MAIN_MATERIAL_COLOR: 0x8B4513, // SaddleBrown
+    MAIN_MATERIAL_ROUGHNESS: 0.9,
+    MAIN_MATERIAL_METALNESS: 0.1,
+    MAIN_MATERIAL_WIREFRAME: false,
+
+    // Visuals - Inner Mesh for detail
+    INNER_GEOMETRY_RADIUS: 0.8,
+    INNER_GEOMETRY_DETAIL: 1,
+    INNER_MATERIAL_COLOR: 0xA0522D, // Sienna
+    INNER_MATERIAL_ROUGHNESS: 1.0,
+    INNER_MATERIAL_METALNESS: 0.0,
+
+    // TumbleweedAIComponent properties
+    ACTIVATION_DISTANCE: 100,
+    DEACTIVATION_DISTANCE: 150,
+    ROLL_SPEED_MIN: 8,
+    ROLL_SPEED_MAX: 12,
+    ROTATION_SPEED_MIN: 0.5,
+    ROTATION_SPEED_MAX: 1.5,
+
+    // AI - Initial Activation
+    TARGET_AHEAD_MIN: 20,
+    TARGET_AHEAD_MAX: 40,
+    TARGET_RANDOMNESS: 0.4,
+    INITIAL_SPEED_FACTOR_MIN: 0.8,
+    INITIAL_SPEED_FACTOR_MAX: 1.2,
+
+    // AI - Movement Update
+    MIN_VELOCITY_SQ_THRESHOLD: 0.1 * 0.1,
+    UPDATE_TARGET_AHEAD_MIN: 15,
+    UPDATE_TARGET_AHEAD_MAX: 30,
+    UPDATE_DIRECTION_RANDOMNESS: 0.6,
+    STEERING_LERP_FACTOR: 0.05,
+    STEERING_FORCE_FACTOR: 0.1,
+    MAX_SPEED_FACTOR: 1.5,
+    WOBBLE_FACTOR: 0.5,
+
+    // AI - Terrain Interaction
+    TERRAIN_ADJUST_THRESHOLD: 1.0,
+    GROUND_BOUNCE_FACTOR: 0.4,
+};

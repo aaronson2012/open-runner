@@ -1,0 +1,38 @@
+{
+  "name": "open-runner",
+  "version": "1.0.0",
+  "description": "A modern 3D endless runner game built with Three.js",
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui",
+    "dev": "python3 -m http.server 8000",
+    "preview": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
+    "happy-dom": "^12.10.3",
+    "vitest": "^1.0.4"
+  },
+  "keywords": [
+    "game",
+    "threejs",
+    "endless-runner",
+    "3d",
+    "browser-game"
+  ],
+  "author": "aaronson2012",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aaronson2012/open-runner.git"
+  },
+  "dependencies": {
+    "seedrandom": "^3.0.5",
+    "simplex-noise": "^4.0.1",
+    "three": "^0.163.0"
+  }
+}
