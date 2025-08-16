@@ -1,0 +1,736 @@
+/* --- Variables --- */
+:root {
+    /* Colors */
+    --primary-color: #4CAF50;
+    --primary-dark: #388E3C;
+    --primary-light: #81C784;
+    --accent-color: #FF9800;
+    --accent-dark: #F57C00;
+    --accent-light: #FFB74D;
+    --danger-color: #f44336;
+    --danger-dark: #d32f2f;
+    --text-light: #FFFFFF;
+    --text-dark: #212121;
+    --text-muted: #757575;
+    --overlay-bg: rgba(0, 0, 0, 0.75);
+    --card-bg: rgba(33, 33, 33, 0.85);
+    --score-bg: rgba(0, 0, 0, 0.6);
+    --progress-bg: #424242;
+
+    /* Fonts */
+    --title-font: 'Orbitron', sans-serif;
+    --body-font: 'Exo 2', sans-serif;
+
+    /* Shadows */
+    --text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    --button-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+
+    /* Transitions */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* Basic reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Prevent scrollbars */
+    font-family: var(--body-font);
+    color: var(--text-light);
+}
+
+#gameCanvas {
+    display: block; /* Remove extra space below canvas */
+    width: 100%;
+    height: 100%;
+}
+
+#scoreDisplay {
+    position: absolute; /* Position relative to the viewport */
+    top: 15px;          /* 15px from the top */
+    left: 15px;         /* 15px from the left */
+    padding: 12px 18px; /* Increased padding */
+    background-color: rgba(0, 0, 0, 0.7); /* Darker, more opaque background */
+    color: var(--text-light);        /* Light text color */
+    font-family: var(--body-font);
+    font-size: 20px; /* Larger font */
+    font-weight: 700; /* Bolder font */
+    border-radius: 10px; /* More rounded corners */
+    z-index: 10;        /* Ensure it's above the canvas */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+    border-left: 4px solid var(--primary-color); /* Thicker border */
+    letter-spacing: 0.5px;
+    text-shadow: var(--text-shadow);
+    transition: transform var(--transition-fast), opacity 0.3s ease;
+}
+
+/* --- UI Overlays --- */
+.ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--overlay-bg); /* Semi-transparent black background */
+    color: var(--text-light);
+    font-family: var(--body-font);
+    text-align: center;
+    z-index: 20; /* Higher than score display */
+    display: none; /* Hidden by default, controlled by JS */
+    backdrop-filter: blur(3px); /* Blur background for modern browsers */
+    transition: opacity var(--transition-normal);
+}
+
+#titleScreen h1 {
+    font-size: 4em;
+    margin-bottom: 30px;
+    font-family: var(--title-font);
+    font-weight: 700;
+    color: var(--text-light);
+    text-shadow: var(--text-shadow), 0 0 15px var(--primary-light);
+    letter-spacing: 2px;
+    transform: scale(1);
+    transition: transform var(--transition-normal);
+}
+
+#titleScreen h1:hover {
+    transform: scale(1.05);
+}
+
+.title-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 30px;
+    width: 250px;
+}
+
+#titleScreen button,
+#gameOverDisplay button { /* Style restart button if added later */
+    padding: 12px 24px;
+    font-size: 1.2em;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(to bottom, var(--primary-light), var(--primary-color));
+    color: var(--text-light);
+    border: none;
+    border-radius: 8px;
+    transition: all var(--transition-normal);
+    min-width: 220px;
+    box-shadow: var(--button-shadow);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+    font-family: var(--body-font);
+    letter-spacing: 0.5px;
+}
+
+#titleScreen button::after,
+#gameOverDisplay button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+#titleScreen button:hover,
+#gameOverDisplay button:hover {
+    background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+#titleScreen button:hover::after,
+#gameOverDisplay button:hover::after {
+    left: 100%;
+}
+
+#titleScreen button:active,
+#gameOverDisplay button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+
+#gameOverDisplay {
+    /* Inherits base styles from .ui-overlay */
+    font-size: 1.5em; /* Reduced from 2em */
+}
+
+#gameOverDisplay h2 {
+    font-family: var(--title-font);
+    font-size: 2.5em; /* Reduced from 3em */
+    margin-bottom: 15px; /* Reduced from 20px */
+    color: var(--danger-color);
+    text-shadow: var(--text-shadow), 0 0 10px rgba(244, 67, 54, 0.5);
+    animation: pulse 2s infinite;
+}
+
+#gameOverDisplay .game-over-score,
+#gameOverDisplay .game-over-high-score {
+    margin-bottom: 10px; /* Reduced from 15px */
+    font-size: 0.7em; /* Reduced from 0.8em */
+}
+
+#gameOverDisplay .menu-buttons {
+    margin-top: 20px; /* Reduced from 30px */
+    width: 80%; /* Limit width of buttons */
+    max-width: 300px;
+}
+
+/* Make game over buttons smaller */
+#gameOverDisplay .menu-buttons button {
+    padding: 10px 15px; /* Smaller padding */
+    font-size: 0.8em; /* Smaller font */
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+#gameOverDisplay p { /* For potential multi-line messages */
+    margin-bottom: 20px;
+    line-height: 1.5;
+    max-width: 600px;
+    font-size: 0.7em;
+}
+
+/* --- Pause Menu Styles --- */
+#pauseMenu {
+    /* Inherits base styles from .ui-overlay */
+}
+
+#pauseMenu h2 {
+    font-family: var(--title-font);
+    font-size: 2.8em;
+    margin-bottom: 30px;
+    color: var(--accent-color);
+    text-shadow: var(--text-shadow);
+    letter-spacing: 1px;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 280px;
+}
+
+.menu-buttons button {
+    padding: 14px 20px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(to bottom, var(--primary-light), var(--primary-color));
+    color: var(--text-light);
+    border: none;
+    border-radius: 8px;
+    transition: all var(--transition-normal);
+    box-shadow: var(--button-shadow);
+    position: relative;
+    overflow: hidden;
+    font-family: var(--body-font);
+}
+
+.menu-buttons button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.menu-buttons button:hover {
+    background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.menu-buttons button:hover::after {
+    left: 100%;
+}
+
+.menu-buttons button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Loading Screen Styles --- */
+#loadingScreen {
+    /* Uses .ui-overlay for base positioning and background */
+    /* Ensure it's displayed initially (overrides .ui-overlay display: none) */
+    display: flex;
+    z-index: 1000; /* Extremely high z-index, ensure it's above everything */
+    transition: opacity 0.4s ease; /* Smoother fade out */
+    background-color: rgb(0, 0, 0); /* Fully opaque black background to hide everything behind it */
+}
+
+#loadingScreen::before {
+    content: 'OPEN RUNNER';
+    font-family: var(--title-font);
+    font-size: 3em;
+    font-weight: 700;
+    margin-bottom: 40px;
+    color: var(--text-light);
+    text-shadow: var(--text-shadow), 0 0 15px var(--primary-light);
+    letter-spacing: 2px;
+    animation: glow 2s infinite alternate;
+}
+
+@keyframes glow {
+    from { text-shadow: var(--text-shadow), 0 0 5px var(--primary-light); }
+    to { text-shadow: var(--text-shadow), 0 0 20px var(--primary-light), 0 0 30px var(--primary-color); }
+}
+
+#progressBarContainer {
+    width: 70%; /* Adjust width as needed */
+    max-width: 450px;
+    height: 24px;
+    background-color: var(--progress-bg); /* Dark background for the container */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    margin-bottom: 20px; /* Space between bar and text */
+    overflow: hidden; /* Ensure progress bar stays within bounds */
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+#progressBar {
+    width: 0%; /* Start at 0% */
+    height: 100%;
+    background: linear-gradient(to right, var(--primary-dark), var(--primary-color), var(--primary-light));
+    background-size: 200% 100%;
+    animation: gradientMove 2s linear infinite;
+    transition: width 0.2s ease-out; /* Smooth transition for width changes */
+    border-radius: 10px;
+    box-shadow: 0 0 10px var(--primary-light);
+}
+
+@keyframes gradientMove {
+    0% { background-position: 0% 0; }
+    100% { background-position: 200% 0; }
+}
+
+#progressText {
+    font-size: 1.2em;
+    color: var(--text-light); /* Light text color */
+    font-family: var(--body-font);
+    letter-spacing: 0.5px;
+    text-shadow: var(--text-shadow);
+}
+
+
+/* --- Level Select Screen Styles --- */
+#levelSelectScreen h2 {
+    font-family: var(--title-font);
+    font-size: 2.8em; /* Match pause menu heading */
+    margin-bottom: 30px;
+    color: var(--accent-color);
+    text-shadow: var(--text-shadow);
+    letter-spacing: 1px;
+}
+
+#levelList {
+    list-style: none; /* Remove default bullet points */
+    padding: 0; /* Remove default padding */
+    display: flex;
+    flex-direction: column;
+    gap: 18px; /* Match pause menu button gap */
+    width: 350px; /* Wider for level buttons */
+    align-items: center; /* Center buttons horizontally */
+    max-height: 60vh; /* Limit height */
+    overflow-y: auto; /* Add scrolling if many levels */
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+/* Scrollbar styling for level list */
+#levelList::-webkit-scrollbar {
+    width: 8px;
+}
+
+#levelList::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+#levelList::-webkit-scrollbar-thumb {
+    background: var(--primary-dark);
+    border-radius: 10px;
+}
+
+#levelList::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+.level-select-button {
+    padding: 14px 20px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(to bottom, var(--primary-light), var(--primary-color));
+    color: var(--text-light);
+    border: none;
+    border-radius: 8px;
+    transition: all var(--transition-normal);
+    width: 100%; /* Make buttons fill the container width */
+    text-align: center;
+    box-shadow: var(--button-shadow);
+    position: relative;
+    overflow: hidden;
+    font-family: var(--body-font);
+}
+
+.level-select-button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.level-select-button:hover {
+    background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.level-select-button:hover::after {
+    left: 100%;
+}
+
+.level-select-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.back-button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(to bottom, var(--danger-color), var(--danger-dark));
+    color: var(--text-light);
+    border: none;
+    border-radius: 8px;
+    transition: all var(--transition-normal);
+    box-shadow: var(--button-shadow);
+    font-family: var(--body-font);
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+}
+
+.back-button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.back-button:hover {
+    background: linear-gradient(to bottom, #f55549, #c62828);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.back-button:hover::after {
+    left: 100%;
+}
+
+.back-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Level button styles */
+.level-button {
+    background: linear-gradient(135deg, rgba(60, 60, 60, 0.7), rgba(30, 30, 30, 0.7));
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin: 5px 0;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    width: 100%;
+    box-shadow: var(--box-shadow);
+    border-left: 4px solid var(--primary-color);
+    text-align: left;
+}
+
+/* --- Mobile Controls --- */
+#mobileControls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px;
+    display: none; /* Hidden by default */
+    z-index: 15;
+    pointer-events: none; /* Allow clicks to pass through the container */
+    opacity: 0; /* Start fully transparent */
+    transition: opacity 0.3s ease; /* Smooth transition */
+    justify-content: space-between; /* Ensure buttons are spaced properly */
+    flex-direction: column; /* Stack elements vertically */
+}
+
+/* Only show mobile controls when the class is present */
+.show-mobile-controls #mobileControls {
+    /* Prepare for display but still hidden until media query applies */
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Show mobile controls on devices with touch capability or when explicitly requested */
+@media (pointer: coarse), (max-width: 768px) {
+    /* On touch devices or small screens, show when the class is present */
+    .show-mobile-controls #mobileControls {
+        display: flex !important; /* Override the default with !important */
+        opacity: 1;
+        pointer-events: auto; /* Make buttons clickable */
+    }
+}
+
+/* Also show mobile controls when explicitly requested via class, regardless of device */
+.force-show-mobile-controls #mobileControls {
+    display: flex !important;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mobile-steering-controls {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 10%;
+    margin-top: 10px;
+}
+
+.mobile-button {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--primary-color);
+    color: white;
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    pointer-events: auto; /* Make buttons clickable */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    transition: background-color 0.2s, transform 0.1s;
+    user-select: none; /* Prevent text selection */
+    touch-action: manipulation; /* Optimize for touch */
+}
+
+.mobile-button:active {
+    background-color: rgba(76, 175, 80, 0.4);
+    transform: scale(0.95);
+}
+
+/* Add hover effect for non-touch devices */
+@media (hover: hover) {
+    .mobile-button:hover {
+        background-color: rgba(76, 175, 80, 0.2);
+        transform: scale(1.05);
+    }
+}
+
+.mobile-pause {
+    position: absolute;
+    top: 15px; /* Position at top */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Center adjustment */
+    width: 60px; /* Slightly smaller */
+    height: 60px;
+    font-size: 24px;
+    z-index: 16; /* Ensure it's above other mobile controls */
+}
+
+/* This media query is now handled above */
+
+.level-button:hover {
+    background: linear-gradient(135deg, rgba(70, 70, 70, 0.8), rgba(40, 40, 40, 0.8));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.level-button.locked {
+    opacity: 0.7;
+    cursor: not-allowed;
+    border-left-color: var(--text-muted);
+    filter: grayscale(0.8);
+}
+
+.level-button h3 {
+    margin: 0 0 8px 0;
+    font-family: var(--title-font);
+    font-size: 1.3em;
+    color: var(--text-light);
+}
+
+.level-button p {
+    margin: 0;
+    font-size: 0.9em;
+    color: var(--text-muted);
+    font-family: var(--body-font);
+}
+
+/* --- Styles moved from uiManager.js --- */
+.high-score {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    color: gold;
+    font-size: 20px; /* Larger font */
+    font-weight: 700; /* Bolder font */
+    font-family: var(--body-font);
+    text-shadow: var(--text-shadow), 0 0 5px rgba(255, 215, 0, 0.5); /* Gold glow */
+    background-color: rgba(0, 0, 0, 0.7); /* Darker, more opaque background */
+    padding: 12px 18px; /* Increased padding */
+    border-radius: 10px; /* More rounded corners */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+    border-right: 4px solid gold; /* Thicker border */
+    letter-spacing: 0.5px;
+    z-index: 10;
+    transition: transform var(--transition-fast), opacity 0.3s ease;
+}
+
+/* Animation for high score when it updates during gameplay */
+@keyframes highScorePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.high-score-pulse {
+    animation: highScorePulse 0.5s ease-in-out;
+    text-shadow: var(--text-shadow), 0 0 15px rgba(255, 215, 0, 0.8); /* Enhanced gold glow */
+}
+
+.notification {
+    position: fixed;
+    top: 30px; /* Moved up even further from 40px */
+    right: 50px; /* Moved more to the right on desktop (was 40px) */
+    left: auto; /* Override left positioning */
+    margin: 0; /* Remove auto margins */
+    width: fit-content;
+    background: linear-gradient(135deg, rgba(40, 40, 40, 0.9), rgba(20, 20, 20, 0.9));
+    color: var(--text-light);
+    padding: 15px 25px;
+    border-radius: 12px;
+    font-size: 20px;
+    font-family: var(--body-font);
+    font-weight: 600;
+    z-index: 1000;
+    text-align: center;
+    box-shadow: var(--box-shadow);
+    backdrop-filter: blur(4px);
+    border-bottom: 3px solid var(--primary-color);
+    min-width: 300px;
+    max-width: 80%;
+    animation: fadeIn 0.3s ease-out;
+    transform: translateY(0); /* Ensure initial position is correct */
+}
+
+/* Center notification on mobile devices */
+@media (max-width: 768px), (pointer: coarse) {
+    .notification {
+        right: 0;
+        left: 0;
+        margin: 0 auto; /* Center horizontally */
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.high-score-notification {
+    color: gold;
+    font-weight: bold;
+    border-bottom-color: gold;
+}
+
+/* Additional positioning for high score notification on desktop */
+@media (min-width: 769px) and (pointer: fine) {
+    .high-score-notification {
+        right: 50px; /* Position even more to the right on desktop */
+    }
+}
+
+.level-unlock-notification {
+    color: #7cfc00;
+    font-weight: bold;
+    border-bottom-color: #7cfc00;
+}
+
+.game-over-score, .game-over-high-score {
+    font-size: 28px;
+    margin: 15px 0;
+    font-family: var(--body-font);
+    font-weight: 600;
+    text-shadow: var(--text-shadow);
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 10px 20px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.game-over-high-score {
+    color: gold;
+    border-left: 3px solid gold;
+}
+
+.game-over-score {
+    border-left: 3px solid var(--primary-color);
+}
+
+.game-over-instruction {
+    margin-top: 30px;
+    font-size: 20px;
+    opacity: 0.9;
+    font-family: var(--body-font);
+    color: var(--text-light);
+    text-shadow: var(--text-shadow);
+    animation: textPulse 2s infinite;
+}
+
+/* Animation for game over instruction text */
+@keyframes textPulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}

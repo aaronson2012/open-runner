@@ -1,0 +1,240 @@
+name: 🔍 PR Quality Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # 🚀 Quick validation for fast feedback
+  quick-checks:
+    name: ⚡ Quick Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: 🎨 Lint check
+        run: npm run lint
+
+      - name: ✨ Format check
+        run: npm run format:check
+
+      - name: 🏗️ TypeScript compilation
+        run: npm run typecheck
+
+      - name: 🧪 Quick test suite
+        run: npm run test:quick
+        env:
+          VITEST_WEBGL_MOCK: true
+
+  # 📊 Bundle size impact analysis
+  bundle-analysis:
+    name: 📦 Bundle Impact Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout PR
+        uses: actions/checkout@v4
+
+      - name: 📥 Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies (PR)
+        run: npm ci --prefer-offline
+
+      - name: 📦 Install dependencies (base)
+        run: cd base && npm ci --prefer-offline
+
+      - name: 🏗️ Build PR version
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: 🏗️ Build base version
+        run: cd base && npm run build
+        env:
+          NODE_ENV: production
+
+      - name: 📊 Compare bundle sizes
+        id: bundle-compare
+        run: |
+          PR_SIZE=$(du -sk dist/ | cut -f1)
+          BASE_SIZE=$(du -sk base/dist/ | cut -f1)
+          DIFF=$((PR_SIZE - BASE_SIZE))
+          DIFF_PERCENT=$(echo "scale=2; $DIFF * 100 / $BASE_SIZE" | bc -l 2>/dev/null || echo "0")
+          
+          echo "pr-size=$PR_SIZE" >> $GITHUB_OUTPUT
+          echo "base-size=$BASE_SIZE" >> $GITHUB_OUTPUT
+          echo "diff=$DIFF" >> $GITHUB_OUTPUT
+          echo "diff-percent=$DIFF_PERCENT" >> $GITHUB_OUTPUT
+
+      - name: 💬 Comment bundle analysis
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prSize = parseInt('${{ steps.bundle-compare.outputs.pr-size }}');
+            const baseSize = parseInt('${{ steps.bundle-compare.outputs.base-size }}');
+            const diff = parseInt('${{ steps.bundle-compare.outputs.diff }}');
+            const diffPercent = parseFloat('${{ steps.bundle-compare.outputs.diff-percent }}');
+            
+            const formatSize = (kb) => {
+              if (kb > 1024) return `${(kb/1024).toFixed(1)}MB`;
+              return `${kb}KB`;
+            };
+            
+            const diffIcon = diff > 0 ? '📈' : diff < 0 ? '📉' : '➡️';
+            const diffText = diff > 0 ? `+${formatSize(diff)}` : formatSize(diff);
+            const warningText = diff > 512 ? '\n\n⚠️ **Warning**: Bundle size increased by more than 512KB' : '';
+            
+            const comment = `## 📦 Bundle Size Analysis
+            
+            | Metric | Base | PR | Diff |
+            |--------|------|-------|------|
+            | **Total Size** | ${formatSize(baseSize)} | ${formatSize(prSize)} | ${diffIcon} ${diffText} (${diffPercent}%) |
+            
+            ### 📊 Impact Assessment
+            - Bundle size change: ${diffPercent > 0 ? 'Increased' : diffPercent < 0 ? 'Decreased' : 'No change'}
+            - Performance impact: ${Math.abs(diffPercent) > 10 ? '❌ Significant' : Math.abs(diffPercent) > 5 ? '⚠️ Moderate' : '✅ Minimal'}
+            ${warningText}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # 🎮 Game functionality validation
+  game-validation:
+    name: 🎮 Game Functionality
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: 🖥️ Setup virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          export DISPLAY=:99.0
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
+      - name: 🏗️ Build for testing
+        run: npm run build:test
+        env:
+          VITE_ENABLE_DEBUG: true
+
+      - name: 🧪 Game initialization tests
+        run: |
+          export DISPLAY=:99.0
+          npm run test:game-init
+        env:
+          VITEST_WEBGL_MOCK: true
+
+      - name: 🎮 Core gameplay tests
+        run: |
+          export DISPLAY=:99.0
+          npm run test:gameplay
+        env:
+          VITEST_WEBGL_MOCK: true
+
+      - name: 📱 Mobile compatibility tests
+        run: |
+          export DISPLAY=:99.0
+          npm run test:mobile
+        env:
+          VITEST_WEBGL_MOCK: true
+          VITEST_MOBILE_MOCK: true
+
+  # 🔒 Security scan
+  security-scan:
+    name: 🔒 Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: 🔍 NPM security audit
+        run: npm audit --audit-level=moderate
+
+      - name: 🛡️ CodeQL analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: typescript, javascript
+
+      - name: 🏗️ Build for analysis
+        run: npm run build
+
+      - name: 🔍 Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+
+  # ✅ Status check aggregation
+  pr-status:
+    name: ✅ PR Status Check
+    runs-on: ubuntu-latest
+    needs: [quick-checks, bundle-analysis, game-validation, security-scan]
+    if: always()
+    steps:
+      - name: 📊 Determine overall status
+        run: |
+          QUICK_STATUS="${{ needs.quick-checks.result }}"
+          BUNDLE_STATUS="${{ needs.bundle-analysis.result }}"
+          GAME_STATUS="${{ needs.game-validation.result }}"
+          SECURITY_STATUS="${{ needs.security-scan.result }}"
+          
+          echo "Quick checks: $QUICK_STATUS"
+          echo "Bundle analysis: $BUNDLE_STATUS"
+          echo "Game validation: $GAME_STATUS"
+          echo "Security scan: $SECURITY_STATUS"
+          
+          if [[ "$QUICK_STATUS" == "success" && "$BUNDLE_STATUS" == "success" && "$GAME_STATUS" == "success" && "$SECURITY_STATUS" == "success" ]]; then
+            echo "✅ All checks passed - PR is ready for review"
+            exit 0
+          else
+            echo "❌ Some checks failed - PR needs attention"
+            exit 1
+          fi

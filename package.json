@@ -1,0 +1,103 @@
+{
+  "name": "open-runner",
+  "version": "2.0.0",
+  "description": "3D Endless Runner Game - Modern TypeScript Rewrite",
+  "type": "module",
+  "author": "Open Runner Team",
+  "license": "MIT",
+  "homepage": "https://github.com/your-username/open-runner",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/open-runner.git"
+  },
+  "keywords": ["game", "threejs", "webgl", "typescript", "mobile", "3d", "runner"],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "npm run typecheck && vite build",
+    "build:test": "vite build --mode test",
+    "build:analyze": "npm run build && npx vite-bundle-analyzer dist/",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,md,json}\"",
+    "test": "vitest",
+    "test:unit": "vitest run --config vitest.config.unit.ts",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "test:performance": "vitest run --config vitest.config.performance.ts",
+    "test:quick": "vitest run --config vitest.config.quick.ts",
+    "test:game-init": "vitest run --config vitest.config.game.ts --grep=\"initialization\"",
+    "test:gameplay": "vitest run --config vitest.config.game.ts --grep=\"gameplay\"",
+    "test:mobile": "vitest run --config vitest.config.mobile.ts",
+    "performance:validate": "node scripts/performance-validation.js",
+    "performance:benchmark": "vitest bench --config vitest.config.performance.ts",
+    "performance:report": "npm run performance:benchmark && npm run performance:validate",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "benchmark": "vitest bench",
+    "clean": "rimraf dist coverage .nyc_output",
+    "prepare": "husky install",
+    "postinstall": "npm run prepare"
+  },
+  "dependencies": {
+    "three": "^0.179.1",
+    "zustand": "^4.4.7",
+    "web-vitals": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/three": "^0.179.0",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitest/coverage-v8": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
+    "happy-dom": "^12.10.3",
+    "husky": "^8.0.3",
+    "jsdom": "^23.0.1",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vite-bundle-analyzer": "^0.7.0",
+    "vite-plugin-compression": "^0.5.1",
+    "vite-plugin-pwa": "^0.17.4",
+    "vitest": "^1.0.4",
+    "vitest-canvas-mock": "^0.3.3"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{css,md,json}": [
+      "prettier --write"
+    ]
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "files": [
+    "dist",
+    "src",
+    "public",
+    "package.json",
+    "README.md"
+  ]
+}

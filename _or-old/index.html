@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Runner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Use emoji favicon as a fallback until a proper favicon.ico is created -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏃</text></svg>">
+    <style>
+        /* Basic styles directly in HTML for initial setup */
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen" class="ui-overlay">
+        <div id="progressBarContainer">
+            <div id="progressBar"></div>
+        </div>
+        <span id="progressText">Loading... 0%</span>
+    </div>
+    <div id="titleScreen" class="ui-overlay" style="display: none;"> <!-- Initially hidden -->
+        <h1>Open Runner</h1>
+        <div class="title-buttons">
+            <button id="startButton">Start Game</button>
+            <button id="levelSelectButton">Select Level</button>
+        </div>
+    </div>
+    <div id="levelSelectScreen" class="ui-overlay" style="display: none;">
+        <h2>Select Level</h2>
+        <ul id="levelList">
+            <!-- Level buttons will be added here by uiManager.js -->
+        </ul>
+        <button id="backToTitleButton" class="back-button">Back to Title</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="scoreDisplay" style="display: none;">Score: 0</div>
+    <div id="gameOverDisplay" class="ui-overlay" style="display: none;">
+        <h2>GAME OVER!</h2>
+        <!-- Score elements will be added dynamically -->
+        <div class="menu-buttons">
+            <button id="gameOverRestartButton">Restart Level</button>
+            <button id="gameOverTitleButton">Return to Title</button>
+        </div>
+    </div> <!-- Game Over Display -->
+
+    <!-- Mobile Controls -->
+    <div id="mobileControls">
+        <button id="mobilePauseBtn" class="mobile-button mobile-pause">⏸️</button>
+        <div class="mobile-steering-controls">
+            <button id="mobileLeftBtn" class="mobile-button">◀</button>
+            <button id="mobileRightBtn" class="mobile-button">▶</button>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pauseMenu" class="ui-overlay" style="display: none;">
+        <h2>Paused</h2>
+        <div class="menu-buttons">
+            <button id="resumeButton">Resume Game</button>
+            <button id="restartButton">Restart Level</button>
+            <button id="returnToTitleButton">Return to Title</button>
+        </div>
+    </div>
+
+    <!-- Import Map for Three.js Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/",
+            "simplex-noise": "https://cdn.skypack.dev/simplex-noise@4.0.1",
+            "seedrandom": "https://cdn.jsdelivr.net/npm/esm-seedrandom/esm/index.min.js"
+        }
+    }
+    </script>
+
+    <!-- Main Game Logic -->
+    <script type="module" src="js/core/main.js"></script>
+</body>
+</html>

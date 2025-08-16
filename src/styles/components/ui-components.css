@@ -1,0 +1,587 @@
+/**
+ * UI Component Styles for Open Runner
+ * Modern, touch-optimized components with accessibility features
+ */
+
+/* Button Components */
+.btn {
+  /* Base button styling */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  
+  /* Minimum touch target */
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  padding: var(--space-sm) var(--space-lg);
+  
+  /* Typography */
+  font-family: inherit;
+  font-size: var(--font-base);
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  white-space: nowrap;
+  
+  /* Visual styling */
+  background: var(--accent-primary);
+  color: white;
+  border: 2px solid var(--accent-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  
+  /* Cursor and transitions */
+  cursor: pointer;
+  transition: all var(--transition-base);
+  
+  /* Remove default button styles */
+  appearance: none;
+  -webkit-appearance: none;
+  
+  /* Touch optimization */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:hover {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Button variants */
+.btn-primary {
+  background: var(--gradient-primary);
+  border-color: var(--accent-primary);
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.btn-outline:hover {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  background: var(--bg-secondary);
+}
+
+.btn-danger {
+  background: var(--error);
+  border-color: var(--error);
+}
+
+.btn-success {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+/* Button sizes */
+.btn-sm {
+  min-height: var(--touch-target-sm);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--font-sm);
+}
+
+.btn-lg {
+  min-height: var(--touch-target-lg);
+  padding: var(--space-lg) var(--space-2xl);
+  font-size: var(--font-lg);
+}
+
+.btn-xl {
+  min-height: 64px;
+  padding: var(--space-xl) var(--space-3xl);
+  font-size: var(--font-xl);
+  font-weight: 700;
+}
+
+.btn-icon {
+  min-width: var(--touch-target);
+  padding: var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* Card Components */
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition: all var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+.card-content {
+  padding: var(--space-lg);
+}
+
+.card-footer {
+  padding: var(--space-lg);
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+/* Modal Components */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  z-index: var(--z-modal);
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-base);
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  
+  transform: scale(0.9) translateY(20px);
+  transition: transform var(--transition-base);
+}
+
+.modal-overlay.active .modal {
+  transform: scale(1) translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.modal-title {
+  font-size: var(--font-xl);
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.modal-content {
+  padding: var(--space-lg);
+}
+
+.modal-footer {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
+  padding: var(--space-lg);
+  border-top: 1px solid var(--border-primary);
+}
+
+/* Progress Components */
+.progress {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  box-shadow: var(--shadow-inset);
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-base);
+  
+  /* Animated gradient for loading states */
+  background-size: 200% 100%;
+  animation: progress-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-sm);
+}
+
+/* Loading Spinner */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--bg-tertiary);
+  border-top: 2px solid var(--accent-primary);
+  border-radius: var(--radius-full);
+  animation: spin 1s linear infinite;
+}
+
+.spinner-lg {
+  width: 48px;
+  height: 48px;
+  border-width: 3px;
+}
+
+.spinner-sm {
+  width: 16px;
+  height: 16px;
+  border-width: 1px;
+}
+
+/* Input Components */
+.input {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-sm) var(--space-md);
+  
+  font-family: inherit;
+  font-size: var(--font-base);
+  
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  
+  transition: all var(--transition-base);
+  
+  /* Remove default styles */
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary)20;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Range Slider */
+.range {
+  width: 100%;
+  height: var(--touch-target);
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.range::-webkit-slider-track {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+}
+
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: var(--accent-primary);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  margin-top: -8px;
+}
+
+.range::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  border: none;
+}
+
+.range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: var(--accent-primary);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  border: none;
+}
+
+/* Toggle Switch */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 32px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  transition: all var(--transition-base);
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 24px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
+  background: white;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.toggle input:checked + .toggle-slider {
+  background: var(--accent-primary);
+}
+
+.toggle input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* Game-specific UI Components */
+.game-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-overlay);
+  
+  padding: var(--space-md);
+  background: var(--gradient-overlay);
+  backdrop-filter: blur(8px);
+  
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.score-display {
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-lg);
+  
+  font-size: var(--font-lg);
+  font-weight: 600;
+  text-align: center;
+  
+  backdrop-filter: blur(8px);
+}
+
+.score-value {
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: var(--accent-primary);
+  
+  /* Number animation */
+  transition: all var(--transition-fast);
+  transform-origin: center;
+}
+
+.score-value.animate {
+  transform: scale(1.2);
+  color: var(--accent-secondary);
+}
+
+/* Touch Control Areas */
+.touch-zone {
+  position: absolute;
+  border: 2px dashed var(--accent-primary)40;
+  border-radius: var(--radius-lg);
+  background: var(--accent-primary)10;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  color: var(--accent-primary);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  text-align: center;
+  
+  opacity: 0;
+  transition: opacity var(--transition-base);
+  
+  /* For debugging/tutorial mode */
+  pointer-events: none;
+}
+
+.touch-zone.visible {
+  opacity: 1;
+}
+
+.touch-zone-left {
+  top: 20%;
+  left: var(--space-md);
+  width: 120px;
+  height: 50%;
+}
+
+.touch-zone-right {
+  top: 20%;
+  right: var(--space-md);
+  width: 120px;
+  height: 50%;
+}
+
+.touch-zone-jump {
+  bottom: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 80px;
+}
+
+/* Performance indicators */
+.performance-indicator {
+  position: fixed;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: var(--z-overlay);
+  
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  
+  font-family: monospace;
+  font-size: var(--font-xs);
+  
+  backdrop-filter: blur(8px);
+}
+
+.fps-good { color: var(--success); }
+.fps-warning { color: var(--warning); }
+.fps-critical { color: var(--error); }
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .btn {
+    min-height: 48px; /* Larger touch targets on mobile */
+  }
+  
+  .card {
+    border-radius: var(--radius-lg);
+    margin: var(--space-sm);
+  }
+  
+  .modal {
+    margin: var(--space-sm);
+    border-radius: var(--radius-lg);
+  }
+  
+  .game-hud {
+    padding: var(--space-sm);
+  }
+  
+  .score-display {
+    font-size: var(--font-base);
+  }
+  
+  .score-value {
+    font-size: var(--font-xl);
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .btn, .card, .modal {
+    border-width: 0.5px;
+  }
+}
