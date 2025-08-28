@@ -18,6 +18,7 @@ export class TerrainManager {
   private readonly options: TerrainManagerOptions;
   private readonly chunkMaterial: StandardMaterial;
   private readonly chunks = new Map<string, TerrainChunk>();
+  private lastUpdateCenter = new Vector3(Number.NaN, 0, Number.NaN);
 
   constructor(scene: Scene, heightFn: HeightFunction, options: TerrainManagerOptions) {
     this.scene = scene;
@@ -41,12 +42,26 @@ export class TerrainManager {
 
   updateAroundPosition(position: Vector3): void {
     const { chunkSize, viewDistanceChunks } = this.options;
-    const centerX = Math.floor(position.x / chunkSize);
-    const centerZ = Math.floor(position.z / chunkSize);
+
+    // Throttle updates if still within the same chunk; prevents thrashing
+    const curCX = Math.floor(position.x / chunkSize);
+    const curCZ = Math.floor(position.z / chunkSize);
+    const lastCX = Math.floor(this.lastUpdateCenter.x / chunkSize);
+    const lastCZ = Math.floor(this.lastUpdateCenter.z / chunkSize);
+    if (curCX === lastCX && curCZ === lastCZ) {
+      return;
+    }
+    this.lastUpdateCenter.set(position.x, 0, position.z);
+
+    const centerX = curCX;
+    const centerZ = curCZ;
+
+    // Safety margin of +1 chunk to avoid flicker at the edge while moving
+    const radius = viewDistanceChunks + 1;
 
     const needed = new Set<string>();
-    for (let dz = -viewDistanceChunks; dz <= viewDistanceChunks; dz++) {
-      for (let dx = -viewDistanceChunks; dx <= viewDistanceChunks; dx++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
         const cx = centerX + dx;
         const cz = centerZ + dz;
         const key = `${cx},${cz}`;

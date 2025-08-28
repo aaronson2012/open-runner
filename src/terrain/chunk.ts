@@ -52,8 +52,8 @@ export class TerrainChunk {
     // Use 16-bit indices for broad WebGL1 compatibility (we are well under 65k)
     const indices = new Uint16Array(segments * segments * 6);
 
-    const x0 = this.chunkX * chunkSize;
-    const z0 = this.chunkZ * chunkSize;
+    const x0 = this.chunkX * chunkSize; // world offset
+    const z0 = this.chunkZ * chunkSize; // world offset
     const step = chunkSize / segments;
     const delta = step; // for normal sampling
 
@@ -65,23 +65,24 @@ export class TerrainChunk {
       const z = z0 + j * step;
       const v = j / segments;
       for (let i = 0; i < vertexCountPerEdge; i++) {
-        const x = x0 + i * step;
+        const xLocal = i * step;
+        const xWorld = x0 + xLocal;
         const u = i / segments;
 
-        const y = this.heightFn(x, z);
+        const y = this.heightFn(xWorld, z);
 
-        positions[pOffset++] = x;
+        positions[pOffset++] = xLocal;
         positions[pOffset++] = y;
-        positions[pOffset++] = z;
+        positions[pOffset++] = j * step;
 
         uvs[uvOffset++] = u;
         uvs[uvOffset++] = v;
 
         // Estimate gradient using central differences for smooth seam-free normals
-        const hL = this.heightFn(x - delta, z);
-        const hR = this.heightFn(x + delta, z);
-        const hD = this.heightFn(x, z - delta);
-        const hU = this.heightFn(x, z + delta);
+        const hL = this.heightFn(xWorld - delta, z);
+        const hR = this.heightFn(xWorld + delta, z);
+        const hD = this.heightFn(xWorld, z - delta);
+        const hU = this.heightFn(xWorld, z + delta);
 
         const dX = (hR - hL) * 0.5 / delta;
         const dZ = (hU - hD) * 0.5 / delta;
@@ -130,6 +131,8 @@ export class TerrainChunk {
     mesh.alwaysSelectAsActiveMesh = false;
     mesh.checkCollisions = false;
     mesh.material = material;
+    // Place the chunk at its world offset; vertices stay in local space
+    mesh.position = new Vector3(x0, 0, z0);
 
     return mesh;
   }
