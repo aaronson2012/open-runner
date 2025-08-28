@@ -49,7 +49,8 @@ export class TerrainChunk {
     const positions = new Float32Array(vertexCount * 3);
     const normals = new Float32Array(vertexCount * 3);
     const uvs = new Float32Array(vertexCount * 2);
-    const indices = new Uint32Array(segments * segments * 6);
+    // Use 16-bit indices for broad WebGL1 compatibility (we are well under 65k)
+    const indices = new Uint16Array(segments * segments * 6);
 
     const x0 = this.chunkX * chunkSize;
     const z0 = this.chunkZ * chunkSize;

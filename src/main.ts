@@ -22,10 +22,12 @@ const createScene = (): Scene => {
   new HemisphericLight('light', new Vector3(0, 1, 0), scene);
 
   // Player camera (placeholder). We'll fly around with WASD/mouse.
-  const camera = new UniversalCamera('player_camera', new Vector3(0, 10, 0), scene);
-  camera.setTarget(new Vector3(1, 10, 1));
+  const camera = new UniversalCamera('player_camera', new Vector3(0, 25, -60), scene);
+  camera.minZ = 0.1; // near plane
+  camera.maxZ = 2000; // far plane
+  camera.setTarget(new Vector3(0, 10, 0));
   camera.attachControl(canvas, true);
-  camera.speed = 1.2;
+  camera.speed = 2.5;
   camera.inertia = 0.7;
   camera.angularSensibility = 4000;
 
@@ -39,7 +41,7 @@ const createScene = (): Scene => {
   const terrain = new TerrainManager(scene, heightFn, {
     chunkSize: 64,
     segments: 64,
-    viewDistanceChunks: 2,
+    viewDistanceChunks: 3,
   });
 
   // Update terrain around the camera initially
