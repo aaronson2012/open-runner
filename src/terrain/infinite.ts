@@ -18,6 +18,9 @@ export class InfiniteTerrain {
   private readonly heightFn: HeightFunction;
   private readonly options: InfiniteTerrainOptions;
   private readonly step: number;
+  private readonly size: number;
+  private readonly half: number;
+  private readonly vertsPerEdge: number;
   private readonly positions: Float32Array;
   private readonly normals: Float32Array;
   private readonly uvs: Float32Array;
@@ -29,10 +32,12 @@ export class InfiniteTerrain {
     this.scene = scene;
     this.heightFn = heightFn;
     this.options = options;
+    this.size = options.size;
     this.step = options.size / options.segments;
+    this.vertsPerEdge = options.segments + 1;
+    this.half = options.size * 0.5;
 
-    const vertsPerEdge = options.segments + 1;
-    const vertexCount = vertsPerEdge * vertsPerEdge;
+    const vertexCount = this.vertsPerEdge * this.vertsPerEdge;
     this.positions = new Float32Array(vertexCount * 3);
     this.normals = new Float32Array(vertexCount * 3);
     this.uvs = new Float32Array(vertexCount * 2);
@@ -40,12 +45,11 @@ export class InfiniteTerrain {
 
     // Static local XZ grid centered around origin
     let p = 0, uv = 0;
-    const half = options.size * 0.5;
-    for (let j = 0; j < vertsPerEdge; j++) {
-      const zLocal = j * this.step - half;
+    for (let j = 0; j < this.vertsPerEdge; j++) {
+      const zLocal = j * this.step - this.half;
       const v = j / options.segments;
-      for (let i = 0; i < vertsPerEdge; i++) {
-        const xLocal = i * this.step - half;
+      for (let i = 0; i < this.vertsPerEdge; i++) {
+        const xLocal = i * this.step - this.half;
         const u = i / options.segments;
         this.positions[p++] = xLocal;
         this.positions[p++] = 0; // y filled during update
@@ -60,9 +64,9 @@ export class InfiniteTerrain {
     let ii = 0;
     for (let j = 0; j < options.segments; j++) {
       for (let i = 0; i < options.segments; i++) {
-        const i0 = j * vertsPerEdge + i;
+        const i0 = j * this.vertsPerEdge + i;
         const i1 = i0 + 1;
-        const i2 = i0 + vertsPerEdge;
+        const i2 = i0 + this.vertsPerEdge;
         const i3 = i2 + 1;
         this.indices[ii++] = i0; this.indices[ii++] = i1; this.indices[ii++] = i2;
         this.indices[ii++] = i1; this.indices[ii++] = i3; this.indices[ii++] = i2;
@@ -88,29 +92,128 @@ export class InfiniteTerrain {
   }
 
   update(center: Vector3): void {
-    const anchorX = Math.floor(center.x / this.step) * this.step;
-    const anchorZ = Math.floor(center.z / this.step) * this.step;
-    if (anchorX === this.lastAnchorX && anchorZ === this.lastAnchorZ) return;
-    this.lastAnchorX = anchorX;
-    this.lastAnchorZ = anchorZ;
+    // Snap anchor to grid to keep vertices stationary in local space
+    let targetAnchorX = Math.floor(center.x / this.step) * this.step;
+    let targetAnchorZ = Math.floor(center.z / this.step) * this.step;
 
-    const vertsPerEdge = this.options.segments + 1;
-    const half = this.options.size * 0.5;
-
-    // Update Y from world-space samples (anchor + local)
-    for (let j = 0; j < vertsPerEdge; j++) {
-      const zLocal = j * this.step - half;
-      const worldZ = anchorZ + zLocal;
-      for (let i = 0; i < vertsPerEdge; i++) {
-        const xLocal = i * this.step - half;
-        const worldX = anchorX + xLocal;
-        const idx = (j * vertsPerEdge + i) * 3 + 1; // y index
-        this.positions[idx] = this.heightFn(worldX, worldZ);
+    if (Number.isNaN(this.lastAnchorX)) {
+      // Initial populate of all heights
+      for (let j = 0; j < this.vertsPerEdge; j++) {
+        const zLocal = j * this.step - this.half;
+        const worldZ = targetAnchorZ + zLocal;
+        for (let i = 0; i < this.vertsPerEdge; i++) {
+          const xLocal = i * this.step - this.half;
+          const worldX = targetAnchorX + xLocal;
+          const idx = (j * this.vertsPerEdge + i) * 3 + 1;
+          this.positions[idx] = this.heightFn(worldX, worldZ);
+        }
       }
+      this.lastAnchorX = targetAnchorX;
+      this.lastAnchorZ = targetAnchorZ;
+      this.mesh.updateVerticesData('position', this.positions, true, false);
+      // Align mesh so local grid is centered relative to the camera's fractional position
+      this.mesh.position.x = this.lastAnchorX - center.x;
+      this.mesh.position.z = this.lastAnchorZ - center.z;
+      return;
+    }
+
+    // Scroll in X by whole steps
+    let dxSteps = Math.round((targetAnchorX - this.lastAnchorX) / this.step);
+    while (dxSteps !== 0) {
+      const stepSign = dxSteps > 0 ? 1 : -1;
+      const newAnchorX = this.lastAnchorX + stepSign * this.step;
+      if (stepSign > 0) {
+        // shift left; fill last column
+        for (let j = 0; j < this.vertsPerEdge; j++) {
+          const rowStart = j * this.vertsPerEdge;
+          // shift
+          for (let i = 0; i < this.vertsPerEdge - 1; i++) {
+            const dst = (rowStart + i) * 3 + 1;
+            const src = (rowStart + i + 1) * 3 + 1;
+            this.positions[dst] = this.positions[src];
+          }
+          // new last column
+          const iLast = this.vertsPerEdge - 1;
+          const zLocal = j * this.step - this.half;
+          const worldZ = this.lastAnchorZ + zLocal;
+          const xLocal = iLast * this.step - this.half;
+          const worldX = newAnchorX + xLocal;
+          const idxY = (rowStart + iLast) * 3 + 1;
+          this.positions[idxY] = this.heightFn(worldX, worldZ);
+        }
+      } else {
+        // shift right; fill first column
+        for (let j = 0; j < this.vertsPerEdge; j++) {
+          const rowStart = j * this.vertsPerEdge;
+          for (let i = this.vertsPerEdge - 1; i > 0; i--) {
+            const dst = (rowStart + i) * 3 + 1;
+            const src = (rowStart + i - 1) * 3 + 1;
+            this.positions[dst] = this.positions[src];
+          }
+          const iFirst = 0;
+          const zLocal = j * this.step - this.half;
+          const worldZ = this.lastAnchorZ + zLocal;
+          const xLocal = iFirst * this.step - this.half;
+          const worldX = newAnchorX + xLocal;
+          const idxY = (rowStart + iFirst) * 3 + 1;
+          this.positions[idxY] = this.heightFn(worldX, worldZ);
+        }
+      }
+      this.lastAnchorX = newAnchorX;
+      dxSteps -= stepSign;
+    }
+
+    // Scroll in Z by whole steps
+    let dzSteps = Math.round((targetAnchorZ - this.lastAnchorZ) / this.step);
+    while (dzSteps !== 0) {
+      const stepSign = dzSteps > 0 ? 1 : -1;
+      const newAnchorZ = this.lastAnchorZ + stepSign * this.step;
+      if (stepSign > 0) {
+        // shift up (towards -z to +z depends on convention); move rows and fill last row
+        for (let j = 0; j < this.vertsPerEdge - 1; j++) {
+          for (let i = 0; i < this.vertsPerEdge; i++) {
+            const dst = (j * this.vertsPerEdge + i) * 3 + 1;
+            const src = ((j + 1) * this.vertsPerEdge + i) * 3 + 1;
+            this.positions[dst] = this.positions[src];
+          }
+        }
+        const jLast = this.vertsPerEdge - 1;
+        const zLocal = jLast * this.step - this.half;
+        const worldZ = newAnchorZ + zLocal;
+        for (let i = 0; i < this.vertsPerEdge; i++) {
+          const xLocal = i * this.step - this.half;
+          const worldX = this.lastAnchorX + xLocal;
+          const idxY = (jLast * this.vertsPerEdge + i) * 3 + 1;
+          this.positions[idxY] = this.heightFn(worldX, worldZ);
+        }
+      } else {
+        // shift down; move rows backwards and fill first row
+        for (let j = this.vertsPerEdge - 1; j > 0; j--) {
+          for (let i = 0; i < this.vertsPerEdge; i++) {
+            const dst = (j * this.vertsPerEdge + i) * 3 + 1;
+            const src = ((j - 1) * this.vertsPerEdge + i) * 3 + 1;
+            this.positions[dst] = this.positions[src];
+          }
+        }
+        const jFirst = 0;
+        const zLocal = jFirst * this.step - this.half;
+        const worldZ = newAnchorZ + zLocal;
+        for (let i = 0; i < this.vertsPerEdge; i++) {
+          const xLocal = i * this.step - this.half;
+          const worldX = this.lastAnchorX + xLocal;
+          const idxY = (jFirst * this.vertsPerEdge + i) * 3 + 1;
+          this.positions[idxY] = this.heightFn(worldX, worldZ);
+        }
+      }
+      this.lastAnchorZ = newAnchorZ;
+      dzSteps -= stepSign;
     }
 
     // Push to GPU (normals not needed; material is unlit)
     this.mesh.updateVerticesData('position', this.positions, true, false);
+    // Keep the mesh aligned with the camera's fractional offset
+    this.mesh.position.x = this.lastAnchorX - center.x;
+    this.mesh.position.z = this.lastAnchorZ - center.z;
   }
 }
 
