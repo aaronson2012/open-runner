@@ -47,16 +47,19 @@ const createScene = (): Scene => {
 
   const TERRAIN_SIZE = 1280;
   const TERRAIN_SEGMENTS = 192;
-  // Exponential fog gives a smoother distance falloff
-  scene.fogMode = Scene.FOGMODE_EXP2;
-  // Blend between top/bottom sky for fog color
+  // Softer, more distant fog for a valley/forest vibe
+  // Use linear fog to keep nearer terrain crisp while softly fading distant hills
+  scene.fogMode = Scene.FOGMODE_LINEAR;
+  // Slightly greener fog to evoke forested valley
   const fogColor = new Color3(
-    (skyTop.r + skyBottom.r) * 0.5,
-    (skyTop.g + skyBottom.g) * 0.5,
-    (skyTop.b + skyBottom.b) * 0.5,
+    (skyTop.r + skyBottom.r) * 0.5 * 0.95,
+    (skyTop.g + skyBottom.g) * 0.5 * 1.05,
+    (skyTop.b + skyBottom.b) * 0.5 * 0.95,
   );
   scene.fogColor = fogColor;
-  scene.fogDensity = 0.0025; // tune for nice fade with size
+  // Linear fog parameters: start end distances relative to terrain size
+  scene.fogStart = 350;  // start fading fairly far out
+  scene.fogEnd = 1800;   // fully fogged at far distance
 
   const terrain = new InfiniteTerrain(scene, heightFn, {
     size: TERRAIN_SIZE,

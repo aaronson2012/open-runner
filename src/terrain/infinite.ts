@@ -4,6 +4,7 @@ import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+// Removed tiling texture; use lit shading instead
 import type { HeightFunction } from './noise';
 
 export interface InfiniteTerrainOptions {
@@ -73,9 +74,10 @@ export class InfiniteTerrain {
       }
     }
 
-    const mat = new StandardMaterial('terrain_unlit', scene);
-    mat.disableLighting = true;
-    mat.emissiveColor = new Color3(0.34, 0.52, 0.36);
+    const mat = new StandardMaterial('terrain_lit', scene);
+    mat.disableLighting = false;
+    mat.diffuseColor = new Color3(0.36, 0.54, 0.38);
+    mat.specularColor = new Color3(0, 0, 0); // keep non-shiny
     mat.useLogarithmicDepth = true;
 
     this.mesh = new Mesh('infinite_terrain', scene);
@@ -209,8 +211,10 @@ export class InfiniteTerrain {
       dzSteps -= stepSign;
     }
 
-    // Push to GPU (normals not needed; material is unlit)
+    // Push to GPU and recompute normals for lighting
     this.mesh.updateVerticesData('position', this.positions, true, false);
+    VertexData.ComputeNormals(this.positions, this.indices, this.normals);
+    this.mesh.updateVerticesData('normal', this.normals, true, false);
     // Keep the mesh aligned with the camera's fractional offset
     this.mesh.position.x = this.lastAnchorX - center.x;
     this.mesh.position.z = this.lastAnchorZ - center.z;
