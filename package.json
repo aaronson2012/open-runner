@@ -28,11 +28,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "8.25.0",
-    "@babylonjs/gui": "8.25.0",
     "@babylonjs/inspector": "8.25.0",
-    "@babylonjs/loaders": "8.25.0",
-    "@babylonjs/materials": "8.25.0",
-    "babylonjs": "8.25.0",
     "simplex-noise": "^4.0.3"
   }
 }

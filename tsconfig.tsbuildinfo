@@ -1,1 +1,1 @@
-{"root":["./src/main.ts","./src/terrain/chunk.ts","./src/terrain/manager.ts","./src/terrain/noise.ts","./src/types/simplex-noise.d.ts"],"version":"5.9.2"}
+{"root":["./src/main.ts","./src/terrain/infinite.ts","./src/terrain/noise.ts","./src/types/simplex-noise.d.ts"],"version":"5.9.2"}

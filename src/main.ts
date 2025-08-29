@@ -2,14 +2,13 @@ import './style.css';
 
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { Scene } from '@babylonjs/core/scene';
-import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
+//
 import { UniversalCamera } from '@babylonjs/core/Cameras/universalCamera';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import '@babylonjs/inspector';
 import { createHeightFunction } from './terrain/noise';
-import { TerrainManager } from './terrain/manager';
+import { InfiniteTerrain } from './terrain/infinite';
 
 const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
@@ -38,16 +37,11 @@ const createScene = (): Scene => {
     amplitude: 18,
   });
 
-  const terrain = new TerrainManager(scene, heightFn, {
-    chunkSize: 64,
-    segments: 64,
-    viewDistanceChunks: 3,
+  const terrain = new InfiniteTerrain(scene, heightFn, {
+    size: 256,
+    segments: 128,
   });
-
-  // Update terrain around the camera initially
-  terrain.updateAroundPosition(camera.position);
-
-  // Keep a reference on scene for access in render loop
+  terrain.update(camera.position);
   // @ts-expect-error attach for quick dev
   scene.__terrain = terrain;
 
@@ -59,9 +53,9 @@ const scene = createScene();
 engine.runRenderLoop(() => {
   // Update chunk loading based on player position before render
   const cam = scene.activeCamera as UniversalCamera | null;
-  const terrain = (scene as any).__terrain as TerrainManager | undefined;
+  const terrain = (scene as any).__terrain as InfiniteTerrain | undefined;
   if (cam && terrain) {
-    terrain.updateAroundPosition(cam.position);
+    terrain.update(cam.position);
   }
   scene.render();
 });
