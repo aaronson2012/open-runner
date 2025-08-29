@@ -27,8 +27,9 @@ export class TerrainManager {
     this.chunkMaterial = new StandardMaterial('terrain_mat', scene);
     this.chunkMaterial.diffuseColor = new Color3(0.34, 0.52, 0.36);
     this.chunkMaterial.specularColor = new Color3(0.02, 0.02, 0.02);
-    // Render both sides to avoid disappearing triangles if winding is off
-    this.chunkMaterial.backFaceCulling = false;
+    // Use proper culling and logarithmic depth for stability at distance
+    this.chunkMaterial.backFaceCulling = true;
+    this.chunkMaterial.useLogarithmicDepth = true;
     this.chunkMaterial.freeze();
   }
 

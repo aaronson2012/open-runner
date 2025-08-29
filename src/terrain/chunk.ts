@@ -78,24 +78,10 @@ export class TerrainChunk {
         uvs[uvOffset++] = u;
         uvs[uvOffset++] = v;
 
-        // Estimate gradient using central differences for smooth seam-free normals
-        const hL = this.heightFn(xWorld - delta, z);
-        const hR = this.heightFn(xWorld + delta, z);
-        const hD = this.heightFn(xWorld, z - delta);
-        const hU = this.heightFn(xWorld, z + delta);
-
-        const dX = (hR - hL) * 0.5 / delta;
-        const dZ = (hU - hD) * 0.5 / delta;
-
-        let nx = -dX;
-        let ny = 1.0;
-        let nz = -dZ;
-        const invLen = 1.0 / Math.hypot(nx, ny, nz);
-        nx *= invLen; ny *= invLen; nz *= invLen;
-
-        normals[nOffset++] = nx;
-        normals[nOffset++] = ny;
-        normals[nOffset++] = nz;
+        // Placeholder; filled by ComputeNormals below
+        normals[nOffset++] = 0;
+        normals[nOffset++] = 1;
+        normals[nOffset++] = 0;
       }
     }
 
@@ -108,23 +94,26 @@ export class TerrainChunk {
         const i2 = i0 + vertexCountPerEdge;
         const i3 = i2 + 1;
 
+        // For Babylon's default left-handed system, use clockwise winding
         // Triangle 1
         indices[idx++] = i0;
-        indices[idx++] = i2;
         indices[idx++] = i1;
+        indices[idx++] = i2;
         // Triangle 2
         indices[idx++] = i1;
-        indices[idx++] = i2;
         indices[idx++] = i3;
+        indices[idx++] = i2;
       }
     }
 
     const mesh = new Mesh(`terrain_${this.key}`, scene);
     const vd = new VertexData();
     vd.positions = Array.from(positions);
-    vd.normals = Array.from(normals);
     vd.indices = Array.from(indices);
     vd.uvs = Array.from(uvs);
+    // Compute smooth normals from geometry for stable lighting
+    VertexData.ComputeNormals(vd.positions, vd.indices, normals);
+    vd.normals = Array.from(normals);
     vd.applyToMesh(mesh, true);
 
     mesh.isPickable = false;
