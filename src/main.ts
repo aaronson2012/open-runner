@@ -15,7 +15,10 @@ const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: 
 
 const createScene = (): Scene => {
   const scene = new Scene(engine);
-  scene.clearColor = new Color3(0.02, 0.02, 0.05).toColor4(1);
+  // Sky blue background
+  const skyTop = new Color3(0.52, 0.78, 0.94);
+  const skyBottom = new Color3(0.68, 0.86, 0.96);
+  scene.clearColor = skyTop.toColor4(1);
 
   // Lighting
   new HemisphericLight('light', new Vector3(0, 1, 0), scene);
@@ -23,23 +26,41 @@ const createScene = (): Scene => {
   // Player camera (placeholder). We'll fly around with WASD/mouse.
   const camera = new UniversalCamera('player_camera', new Vector3(0, 25, -60), scene);
   camera.minZ = 0.1; // near plane
-  camera.maxZ = 2000; // far plane
+  camera.maxZ = 5000; // far plane
   camera.setTarget(new Vector3(0, 10, 0));
   camera.attachControl(canvas, true);
   camera.speed = 2.5;
   camera.inertia = 0.7;
   camera.angularSensibility = 4000;
 
+  // Simple gradient skydome using a large sphere with vertex colors
+  // This avoids extra textures and keeps the gradient subtle
+  // Note: Using built-in scene clearColor for background, so this is optional; skipping mesh to keep perf
+
   // Terrain system
   const heightFn = createHeightFunction({
-    baseFrequency: 1 / 250,
+    baseFrequency: 1 / 280,
     octaves: 5,
-    amplitude: 18,
+    amplitude: 22,
+    persistence: 0.52,
   });
 
+  const TERRAIN_SIZE = 1280;
+  const TERRAIN_SEGMENTS = 192;
+  // Exponential fog gives a smoother distance falloff
+  scene.fogMode = Scene.FOGMODE_EXP2;
+  // Blend between top/bottom sky for fog color
+  const fogColor = new Color3(
+    (skyTop.r + skyBottom.r) * 0.5,
+    (skyTop.g + skyBottom.g) * 0.5,
+    (skyTop.b + skyBottom.b) * 0.5,
+  );
+  scene.fogColor = fogColor;
+  scene.fogDensity = 0.0025; // tune for nice fade with size
+
   const terrain = new InfiniteTerrain(scene, heightFn, {
-    size: 256,
-    segments: 128,
+    size: TERRAIN_SIZE,
+    segments: TERRAIN_SEGMENTS,
   });
   terrain.update(camera.position);
   // @ts-expect-error attach for quick dev

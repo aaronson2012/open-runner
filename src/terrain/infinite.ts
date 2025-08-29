@@ -109,12 +109,8 @@ export class InfiniteTerrain {
       }
     }
 
-    // Recompute normals
-    VertexData.ComputeNormals(this.positions, this.indices, this.normals);
-
-    // Push to GPU
+    // Push to GPU (normals not needed; material is unlit)
     this.mesh.updateVerticesData('position', this.positions, true, false);
-    this.mesh.updateVerticesData('normal', this.normals, true, false);
   }
 }
 
