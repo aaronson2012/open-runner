@@ -12,6 +12,10 @@ permissions:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+        
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +25,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
     - name: Cache dependencies
@@ -32,11 +36,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
+    - name: Audit dependencies
+      run: npm audit --audit-level high
+
     - name: Install dependencies
       run: npm ci
 
+    - name: Run tests
+      run: npm test
+
     - name: Build project
       run: npm run build
+
+    - name: Report build size
+      run: ls -lh dist/
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
@@ -46,6 +59,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     
     environment:
       name: github-pages
@@ -55,3 +69,7 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
+
+    - name: Notify on failure
+      if: failure()
+      run: echo "Build failed on commit ${{ github.sha }}"
