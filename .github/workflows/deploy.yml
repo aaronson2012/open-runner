@@ -12,10 +12,6 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        node-version: [20]  # Use only one version for deployment
-        
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +21,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '20'
         cache: 'npm'
 
     - name: Cache dependencies
