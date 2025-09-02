@@ -1,6 +1,6 @@
-# Babylon.js TypeScript Project
+# Open Runner
 
-This is a starter project for creating 3D applications with Babylon.js and TypeScript. It includes:
+This is a starter project for creating 3D applications with Babylon.js and TypeScript, named "Open Runner". It includes:
 
 - Babylon.js (latest version)
 - TypeScript
