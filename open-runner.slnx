@@ -1,2 +1,11 @@
 ﻿<Solution>
+  <Project Path="ProceduralToolkit.csproj" />
+  <Project Path="ProceduralToolkit.Samples.csproj" />
+  <Project Path="ProceduralToolkit.ClipperLib.csproj" />
+  <Project Path="ProceduralToolkit.LibTessDotNet.csproj" />
+  <Project Path="ProceduralToolkit.Samples.Chairs.Editor.csproj" />
+  <Project Path="ProceduralToolkit.FastNoiseLib.csproj" />
+  <Project Path="ProceduralToolkit.Samples.Buildings.Editor.csproj" />
+  <Project Path="ProceduralToolkit.Editor.csproj" />
+  <Project Path="ProceduralToolkit.Samples.LowPolyTerrain.Editor.csproj" />
 </Solution>
